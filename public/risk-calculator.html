@@ -1,1 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>SMC Risk Calculator</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1220;
+      color: #ffffff;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #aab4c3;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: #111b2e;
+      border: 1px solid #26344d;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 7px;
+      color: #dbe4f0;
+      font-weight: bold;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 13px;
+      border-radius: 9px;
+      border: 1px solid #3b4b65;
+      background: #0d1728;
+      color: #ffffff;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 17px;
+      font-weight: bold;
+    }
+
+    .result {
+      margin-top: 20px;
+      line-height: 1.8;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #26344d;
+      padding: 10px 0;
+    }
+
+    .value {
+      font-weight: bold;
+    }
+
+    .warning {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 9px;
+      background: #241c0d;
+      border: 1px solid #735a21;
+      color: #f5d98b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>SMC Risk Calculator</h1>
+
+  <div class="subtitle">
+    Calculate risk before taking a trade
+  </div>
+
+  <div class="card">
+
+    <label>Instrument</label>
+
+    <select id="instrument">
+      <option value="forex">Forex</option>
+      <option value="xauusd">XAUUSD (Gold)</option>
+    </select>
+
+    <label>Account Balance ($)</label>
+
+    <input
+      type="number"
+      id="balance"
+      placeholder="Example: 1000"
+      step="0.01"
+    >
+
+    <label>Risk (%)</label>
+
+    <input
+      type="number"
+      id="riskPercent"
+      placeholder="Example: 1"
+      value="1"
+      step="0.01"
+    >
+
+    <label>Entry Price</label>
+
+    <input
+      type="number"
+      id="entry"
+      placeholder="Example: 3350.00"
+      step="0.00001"
+    >
+
+    <label>Stop Loss</label>
+
+    <input
+      type="number"
+      id="stopLoss"
+      placeholder="Example: 3335.00"
+      step="0.00001"
+    >
+
+    <label>Take Profit</label>
+
+    <input
+      type="number"
+      id="takeProfit"
+      placeholder="Example: 3380.00"
+      step="0.00001"
+    >
+
+    <button onclick="calculateRisk()">
+      CALCULATE RISK
+    </button>
+
+  </div>
+
+
+  <div class="card">
+
+    <h2>Risk Results</h2>
+
+    <div id="results" class="result">
+      Enter your trade information above.
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+function calculateRisk() {
+
+  const instrument =
+    document.getElementById("instrument").value;
+
+  const balance =
+    parseFloat(
+      document.getElementById("balance").value
+    );
+
+  const riskPercent =
+    parseFloat(
+      document.getElementById("riskPercent").value
+    );
+
+  const entry =
+    parseFloat(
+      document.getElementById("entry").value
+    );
+
+  const stopLoss =
+    parseFloat(
+      document.getElementById("stopLoss").value
+    );
+
+  const takeProfit =
+    parseFloat(
+      document.getElementById("takeProfit").value
+    );
+
+  const results =
+    document.getElementById("results");
+
+
+  if (
+    !balance ||
+    !riskPercent ||
+    !entry ||
+    !stopLoss ||
+    !takeProfit
+  ) {
+
+    results.innerHTML =
+      "Please enter all trade information.";
+
+    return;
+  }
+
+
+  if (
+    balance <= 0 ||
+    riskPercent <= 0 ||
+    riskPercent > 100
+  ) {
+
+    results.innerHTML =
+      "Please enter a valid account balance and risk percentage.";
+
+    return;
+  }
+
+
+  if (entry === stopLoss) {
+
+    results.innerHTML =
+      "Entry and Stop Loss cannot be the same.";
+
+    return;
+  }
+
+
+  const riskAmount =
+    balance * (riskPercent / 100);
+
+
+  const stopDistance =
+    Math.abs(entry - stopLoss);
+
+
+  const targetDistance =
+    Math.abs(takeProfit - entry);
+
+
+  const rewardRisk =
+    targetDistance / stopDistance;
+
+
+  /*
+    Approximate position sizing.
+
+    Forex:
+    Standard lot = 100,000 units.
+
+    XAUUSD:
+    Common contract assumption =
+    100 oz per standard lot.
+
+    Actual broker contract specifications
+    can differ, so the result should be
+    verified against the broker.
+  */
+
+  let lotSize;
+
+
+  if (instrument === "xauusd") {
+
+    const valuePerLot =
+      stopDistance * 100;
+
+    lotSize =
+      riskAmount / valuePerLot;
+
+  } else {
+
+    /*
+      This is a simplified forex calculation.
+
+      It assumes USD is approximately the
+      quote currency.
+
+      For cross pairs, actual pip value
+      depends on the pair and account currency.
+    */
+
+    const pipSize =
+      0.0001;
+
+    const stopPips =
+      stopDistance / pipSize;
+
+    const pipValuePerStandardLot =
+      10;
+
+    lotSize =
+      riskAmount /
+      (stopPips * pipValuePerStandardLot);
+  }
+
+
+  if (!isFinite(lotSize) || lotSize <= 0) {
+
+    results.innerHTML =
+      "Unable to calculate a valid lot size.";
+
+    return;
+  }
+
+
+  results.innerHTML = `
+
+    <div class="result-row">
+      <span>Account Balance</span>
+      <span class="value">
+        $${balance.toFixed(2)}
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Risk</span>
+      <span class="value">
+        ${riskPercent.toFixed(2)}%
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Maximum Risk</span>
+      <span class="value">
+        $${riskAmount.toFixed(2)}
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Entry</span>
+      <span class="value">
+        ${entry}
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Stop Loss</span>
+      <span class="value">
+        ${stopLoss}
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Take Profit</span>
+      <span class="value">
+        ${takeProfit}
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Stop Distance</span>
+      <span class="value">
+        ${stopDistance.toFixed(5)}
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Potential Reward</span>
+      <span class="value">
+        ${rewardRisk.toFixed(2)}R
+      </span>
+    </div>
+
+    <div class="result-row">
+      <span>Suggested Lot Size</span>
+      <span class="value">
+        ${lotSize.toFixed(2)}
+      </span>
+    </div>
+
+    <div class="warning">
+      This calculator is for risk-management
+      planning only. Verify the lot size,
+      contract size, pip value and margin
+      requirements with your broker before
+      placing a trade.
+    </div>
+
+  `;
+
+}
+
+</script>
+
+</body>
+  </html>
