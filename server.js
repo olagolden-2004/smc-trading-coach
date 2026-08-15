@@ -79,7 +79,7 @@ app.get("/gemini-test", async (req, res) => {
           "x-goog-api-key": apiKey
         },
         body: JSON.stringify({
-          model: "gemini-2.5-flash-lite",
+          model: "gemini-3.5-flash-lite",
           input: "Reply with exactly: GEMINI TEST SUCCESS"
         })
       }
