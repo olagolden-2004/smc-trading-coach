@@ -236,6 +236,160 @@ app.post(
   }
 );
 // ============================================
+// SMC 4H ANALYSIS ENGINE
+// ============================================
+
+app.post(
+  "/smc-analysis-4h",
+  upload.single("chart"),
+  async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "GEMINI_API_KEY is not configured."
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "Please upload a 4H chart."
+        });
+      }
+
+      const base64Image =
+        req.file.buffer.toString("base64");
+
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            model: "gemini-3.6-flash",
+            input: [
+              {
+                type: "image",
+                data: base64Image,
+                mime_type: req.file.mimetype
+              },
+              {
+                type: "text",
+                text: `
+You are the 4H Smart Money Concepts (SMC) analysis engine.
+
+Analyze ONLY the 4H timeframe shown in the uploaded chart.
+
+Do NOT provide an entry.
+Do NOT provide a trade signal.
+Do NOT analyze 1H or 15M.
+
+Use only information that is clearly visible on the chart.
+Never invent prices or structures that cannot be confirmed.
+
+Return the analysis using exactly this structure:
+
+MARKET:
+Identify the instrument if visible.
+
+TIMEFRAME:
+Confirm the chart timeframe.
+
+4H BIAS:
+Bullish / Bearish / Neutral
+
+4H MARKET STRUCTURE:
+Explain the visible higher highs, higher lows,
+lower highs, lower lows, BOS or CHOCH.
+
+4H LIQUIDITY:
+Identify major visible buy-side and sell-side liquidity.
+
+4H PREMIUM / DISCOUNT:
+Explain whether current price is in premium,
+discount, or equilibrium relative to the visible
+dealing range.
+
+4H KEY ZONES:
+Identify important visible:
+- Supply
+- Demand
+- Order Blocks
+- Fair Value Gaps
+
+4H IMPORTANT LEVELS:
+List important visible highs, lows and liquidity levels.
+
+4H SMC CONCLUSION:
+Give a short explanation of the dominant 4H context.
+
+CONFIDENCE:
+High / Medium / Low
+
+IMPORTANT RULE:
+If the chart does not provide enough visual evidence,
+say "INSUFFICIENT 4H EVIDENCE" instead of guessing.
+`
+              }
+            ]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: data
+        });
+      }
+
+      let text = "";
+
+      if (Array.isArray(data.steps)) {
+        for (const step of data.steps) {
+          if (
+            step.type === "model_output" &&
+            Array.isArray(step.content)
+          ) {
+            for (const content of step.content) {
+              if (content.type === "text") {
+                text += content.text;
+              }
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        timeframe: "4H",
+        model: "gemini-3.6-flash",
+        analysis: text.trim(),
+        interaction_id: data.id || null
+      });
+
+    } catch (error) {
+      console.error(
+        "4H SMC analysis error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+// ============================================
 // HEALTH CHECK
 // ============================================
 
