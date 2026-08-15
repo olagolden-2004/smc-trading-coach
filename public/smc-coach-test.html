@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMC Trading Coach</title>
+</head>
+
+<body>
+
+  <h2>SMC Trading Coach — Full Top-Down Test</h2>
+
+  <p>Select your 4H chart:</p>
+  <input type="file" id="chart4h" accept="image/*">
+
+  <p>Select your 1H chart:</p>
+  <input type="file" id="chart1h" accept="image/*">
+
+  <p>Select your 15M chart:</p>
+  <input type="file" id="chart15m" accept="image/*">
+
+  <br><br>
+
+  <button onclick="runCoach()">
+    Analyze 4H → 1H → 15M
+  </button>
+
+  <pre id="result">Waiting for charts...</pre>
+
+  <script>
+    async function runCoach() {
+
+      const chart4h =
+        document.getElementById("chart4h").files[0];
+
+      const chart1h =
+        document.getElementById("chart1h").files[0];
+
+      const chart15m =
+        document.getElementById("chart15m").files[0];
+
+      const result =
+        document.getElementById("result");
+
+      if (!chart4h || !chart1h || !chart15m) {
+        result.textContent =
+          "Please select all three charts: 4H, 1H and 15M.";
+        return;
+      }
+
+      result.textContent =
+        "SMC Coach is analyzing 4H → 1H → 15M...\n\nPlease wait.";
+
+      const formData = new FormData();
+
+      formData.append("chart_4h", chart4h);
+      formData.append("chart_1h", chart1h);
+      formData.append("chart_15m", chart15m);
+
+      try {
+
+        const response = await fetch(
+          "/smc-coach",
+          {
+            method: "POST",
+            body: formData
+          }
+        );
+
+        const data = await response.json();
+
+        result.textContent =
+          JSON.stringify(data, null, 2);
+
+      } catch (error) {
+
+        result.textContent =
+          "Error: " + error.message;
+
+      }
+    }
+  </script>
+
+</body>
+</html>
