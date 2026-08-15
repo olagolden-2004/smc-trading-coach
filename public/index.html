@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMC Trading Coach AI</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #0f172a;
+      color: white;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 450px;
+      margin: auto;
+      padding: 25px 18px;
+    }
+
+    .logo {
+      text-align: center;
+      margin: 30px 0;
+    }
+
+    .logo h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .logo p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 22px;
+      margin-top: 20px;
+    }
+
+    .card h2 {
+      margin-bottom: 18px;
+      font-size: 21px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      background: #0f172a;
+      color: white;
+      font-size: 15px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+
+    button.secondary {
+      background: #334155;
+    }
+
+    .message {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .feature {
+      background: #1e293b;
+      padding: 18px 10px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .feature h3 {
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    .feature p {
+      color: #94a3b8;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="logo">
+    <h1>SMC Trading Coach AI</h1>
+    <p>Smart Money Concepts • Risk • News</p>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard">
+
+    <h2>Login</h2>
+
+    <input
+      type="email"
+      id="loginEmail"
+      placeholder="Email"
+    >
+
+    <input
+      type="password"
+      id="loginPassword"
+      placeholder="Password"
+    >
+
+    <button onclick="login()">
+      Login
+    </button>
+
+    <button
+      class="secondary"
+      onclick="showSignup()"
+    >
+      Create Account
+    </button>
+
+    <div
+      class="message"
+      id="loginMessage"
+    ></div>
+
+  </div>
+
+  <!-- SIGNUP -->
+
+  <div
+    class="card hidden"
+    id="signupCard"
+  >
+
+    <h2>Create Account</h2>
+
+    <input
+      type="text"
+      id="signupName"
+      placeholder="Full name"
+    >
+
+    <input
+      type="email"
+      id="signupEmail"
+      placeholder="Email"
+    >
+
+    <input
+      type="password"
+      id="signupPassword"
+      placeholder="Password (minimum 6 characters)"
+    >
+
+    <button onclick="signup()">
+      Create Account
+    </button>
+
+    <button
+      class="secondary"
+      onclick="showLogin()"
+    >
+      Back to Login
+    </button>
+
+    <div
+      class="message"
+      id="signupMessage"
+    ></div>
+
+  </div>
+
+  <!-- DASHBOARD -->
+
+  <div
+    id="dashboard"
+    class="hidden"
+  >
+
+    <div class="card">
+
+      <h2>Welcome 👋</h2>
+
+      <p id="userEmail"></p>
+
+      <div class="features">
+
+        <div class="feature">
+          <h3>📊 AI Analysis</h3>
+          <p>4H → 1H → 15M</p>
+        </div>
+
+        <div class="feature">
+          <h3>🧮 Risk Calculator</h3>
+          <p>Manage your risk</p>
+        </div>
+
+        <div class="feature">
+          <h3>📐 Lot Size</h3>
+          <p>Calculate position size</p>
+        </div>
+
+        <div class="feature">
+          <h3>📰 News</h3>
+          <p>Economic news intelligence</p>
+        </div>
+
+        <div class="feature">
+          <h3>💬 Support</h3>
+          <p>Contact the owner</p>
+        </div>
+
+      </div>
+
+      <button
+        class="secondary"
+        onclick="logout()"
+      >
+        Logout
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+async function signup() {
+
+  const full_name =
+    document.getElementById("signupName").value;
+
+  const email =
+    document.getElementById("signupEmail").value;
+
+  const password =
+    document.getElementById("signupPassword").value;
+
+  const message =
+    document.getElementById("signupMessage");
+
+  message.textContent = "Creating account...";
+
+  try {
+
+    const response = await fetch(
+      "/auth/signup",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          full_name,
+          email,
+          password
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      message.textContent =
+        data.error || "Signup failed.";
+      return;
+    }
+
+    message.textContent =
+      "Account created successfully. You can now log in.";
+
+  } catch (error) {
+
+    message.textContent =
+      "Connection error.";
+
+  }
+}
+
+async function login() {
+
+  const email =
+    document.getElementById("loginEmail").value;
+
+  const password =
+    document.getElementById("loginPassword").value;
+
+  const message =
+    document.getElementById("loginMessage");
+
+  message.textContent = "Logging in...";
+
+  try {
+
+    const response = await fetch(
+      "/auth/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      message.textContent =
+        data.error || "Login failed.";
+      return;
+    }
+
+    document.getElementById(
+      "loginCard"
+    ).classList.add("hidden");
+
+    document.getElementById(
+      "signupCard"
+    ).classList.add("hidden");
+
+    document.getElementById(
+      "dashboard"
+    ).classList.remove("hidden");
+
+    document.getElementById(
+      "userEmail"
+    ).textContent = data.user.email;
+
+  } catch (error) {
+
+    message.textContent =
+      "Connection error.";
+
+  }
+}
+
+function showSignup() {
+
+  document.getElementById(
+    "loginCard"
+  ).classList.add("hidden");
+
+  document.getElementById(
+    "signupCard"
+  ).classList.remove("hidden");
+}
+
+function showLogin() {
+
+  document.getElementById(
+    "signupCard"
+  ).classList.add("hidden");
+
+  document.getElementById(
+    "loginCard"
+  ).classList.remove("hidden");
+}
+
+function logout() {
+
+  document.getElementById(
+    "dashboard"
+  ).classList.add("hidden");
+
+  document.getElementById(
+    "loginCard"
+  ).classList.remove("hidden");
+
+}
+
+</script>
+
+</body>
+  </html>
