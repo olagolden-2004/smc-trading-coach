@@ -6,11 +6,15 @@ const app = express();
 
 app.use(express.json());
 app.use(express.static("public"));
+
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey) {
-  console.error("ERROR: Supabase environment variables are missing.");
+  console.error(
+    "ERROR: Supabase environment variables are missing."
+  );
   process.exit(1);
 }
 
@@ -18,6 +22,39 @@ const supabaseAdmin = createClient(
   supabaseUrl,
   supabaseServiceRoleKey
 );
+
+// ============================================
+// AUTOMATIC SLOT ROTATION
+// ============================================
+
+async function checkExpiredSlots() {
+  try {
+    const { error } = await supabaseAdmin.rpc(
+      "rotate_expired_slots"
+    );
+
+    if (error) {
+      console.error(
+        "Slot rotation error:",
+        error.message
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Slot rotation error:",
+      error.message
+    );
+  }
+}
+
+// Check expired slots every 5 minutes
+setInterval(
+  checkExpiredSlots,
+  5 * 60 * 1000
+);
+
+// Check once when the server starts
+checkExpiredSlots();
 
 // ============================================
 // HEALTH CHECK
