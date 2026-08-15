@@ -55,7 +55,70 @@ setInterval(
 
 // Check once when the server starts
 checkExpiredSlots();
+// ============================================
+// GEMINI FREE API TEST
+// ============================================
 
+app.get("/gemini-test", async (req, res) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: "GEMINI_API_KEY is not configured."
+      });
+    }
+
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: "Reply with exactly: GEMINI TEST SUCCESS"
+                }
+              ]
+            }
+          ]
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: data
+      });
+    }
+
+    const text =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    res.json({
+      success: true,
+      model: "gemini-2.5-flash-lite",
+      response: text.trim()
+    });
+
+  } catch (error) {
+    console.error("Gemini test error:", error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 // ============================================
 // HEALTH CHECK
 // ============================================
