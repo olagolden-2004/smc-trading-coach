@@ -1091,6 +1091,324 @@ Never force a BUY or SELL.
   }
 });
 // ============================================
+// COMPLETE SMC TRADING COACH
+// 4H -> 1H -> 15M -> FINAL DECISION
+// ============================================
+
+app.post(
+  "/smc-coach",
+  upload.fields([
+    { name: "chart_4h", maxCount: 1 },
+    { name: "chart_1h", maxCount: 1 },
+    { name: "chart_15m", maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "GEMINI_API_KEY is not configured."
+        });
+      }
+
+      const chart4h =
+        req.files?.chart_4h?.[0];
+
+      const chart1h =
+        req.files?.chart_1h?.[0];
+
+      const chart15m =
+        req.files?.chart_15m?.[0];
+
+      if (!chart4h || !chart1h || !chart15m) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Please upload all three charts: 4H, 1H and 15M."
+        });
+      }
+
+      const image4h =
+        chart4h.buffer.toString("base64");
+
+      const image1h =
+        chart1h.buffer.toString("base64");
+
+      const image15m =
+        chart15m.buffer.toString("base64");
+
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            model: "gemini-3.6-flash",
+
+            input: [
+              {
+                type: "text",
+                text: `
+You are the SMC TRADING COACH.
+
+Analyze these three charts in strict order:
+
+4H -> 1H -> 15M
+
+The 4H establishes the higher-timeframe context.
+The 1H confirms or challenges that context.
+The 15M is used only for entry confirmation.
+
+Do not allow the 15M timeframe to override
+strong conflicting higher-timeframe evidence.
+
+Use only information clearly visible in the
+three uploaded charts.
+
+Do not invent prices, structure, liquidity,
+FVGs, Order Blocks or trade setups.
+
+========================================
+4H ANALYSIS
+========================================
+
+Determine:
+
+- Market
+- Timeframe
+- 4H bias
+- 4H market structure
+- Major liquidity
+- Premium / Discount
+- Major supply and demand
+- Important Order Blocks
+- Important FVGs
+- Major highs and lows
+
+========================================
+1H ANALYSIS
+========================================
+
+Determine:
+
+- 1H bias
+- Market structure
+- BOS / CHOCH
+- Liquidity
+- Liquidity sweep
+- Displacement
+- FVG
+- Order Block
+- Premium / Discount
+- Whether 1H agrees with 4H
+
+========================================
+15M ANALYSIS
+========================================
+
+Determine:
+
+- 15M bias
+- Market structure
+- Liquidity sweep
+- BOS / CHOCH
+- Displacement
+- FVG
+- Order Block
+- Retracement
+- Whether a fresh entry exists
+
+IMPORTANT:
+
+A liquidity sweep alone is NOT enough.
+
+A BOS/CHOCH alone is NOT enough.
+
+Prefer:
+
+Liquidity sweep
++
+Displacement
++
+Structural confirmation
++
+Retracement
+
+========================================
+FINAL TOP-DOWN DECISION
+========================================
+
+Grade the setup:
+
+A+ = Excellent alignment and confirmation.
+
+A = Strong setup with minor imperfection.
+
+B = Tradable but one important confirmation
+is weaker.
+
+C = Weak setup.
+
+D = Poor setup.
+
+A C or D setup should normally be WAIT.
+
+BUY only when the higher-timeframe context,
+1H confirmation and 15M entry confirmation
+support the same direction.
+
+SELL only under equivalent bearish conditions.
+
+If the timeframes conflict:
+
+WAIT.
+
+If the 15M move has already happened:
+
+WAIT.
+
+If there is no fresh entry:
+
+WAIT.
+
+Never force a trade.
+
+========================================
+FINAL OUTPUT
+========================================
+
+Return exactly:
+
+MARKET:
+
+4H BIAS:
+
+4H STRUCTURE:
+
+1H BIAS:
+
+1H CONFIRMATION:
+
+15M BIAS:
+
+15M ENTRY CONFIRMATION:
+
+TOP-DOWN ALIGNMENT:
+Strong / Moderate / Weak / Conflicting
+
+LIQUIDITY STORY:
+
+SETUP GRADE:
+A+ / A / B / C / D
+
+FINAL SIGNAL:
+BUY / SELL / WAIT
+
+ENTRY:
+
+STOP LOSS:
+
+TAKE PROFIT:
+
+RISK/REWARD:
+
+CONFIDENCE:
+High / Medium / Low
+
+FINAL DECISION:
+
+TRADE REASONING:
+
+INVALIDATION:
+
+If there is no valid setup, the FINAL DECISION
+must be:
+
+NO TRADE — WAIT FOR CONFIRMATION
+
+Never invent missing prices.
+
+Never force BUY or SELL.
+
+Only provide Entry, Stop Loss and Take Profit
+when a fresh valid setup is actually confirmed.
+`
+              },
+
+              {
+                type: "image",
+                data: image4h,
+                mime_type: chart4h.mimetype
+              },
+
+              {
+                type: "image",
+                data: image1h,
+                mime_type: chart1h.mimetype
+              },
+
+              {
+                type: "image",
+                data: image15m,
+                mime_type: chart15m.mimetype
+              }
+            ]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: data
+        });
+      }
+
+      let text = "";
+
+      if (Array.isArray(data.steps)) {
+        for (const step of data.steps) {
+          if (
+            step.type === "model_output" &&
+            Array.isArray(step.content)
+          ) {
+            for (const content of step.content) {
+              if (content.type === "text") {
+                text += content.text;
+              }
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        model: "gemini-3.6-flash",
+        analysis: text.trim(),
+        interaction_id: data.id || null
+      });
+
+    } catch (error) {
+      console.error(
+        "SMC Coach error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+// ============================================
 // HEALTH CHECK
 // ============================================
 
