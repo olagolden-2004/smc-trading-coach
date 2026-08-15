@@ -93,14 +93,42 @@ app.post("/auth/signup", async (req, res) => {
       });
     }
 
+    // Give the database trigger time to create the profile
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Automatically assign one of the four AI analysis slots
+    const { data: slotData, error: slotError } =
+      await supabaseAdmin.rpc(
+        "assign_analysis_slot",
+        {
+          p_user_id: data.user.id
+        }
+      );
+
+    if (slotError) {
+      console.error("Slot assignment error:", slotError);
+
+      return res.status(201).json({
+        message: "Account created, but AI slot assignment is pending.",
+        user: {
+          id: data.user.id,
+          email: data.user.email
+        }
+      });
+    }
+
     res.status(201).json({
       message: "Account created successfully.",
+      access: slotData,
       user: {
         id: data.user.id,
         email: data.user.email
       }
     });
+
   } catch (error) {
+    console.error("Signup error:", error);
+
     res.status(500).json({
       error: error.message
     });
