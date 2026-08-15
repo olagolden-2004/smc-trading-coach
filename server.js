@@ -787,6 +787,310 @@ IMPORTANT RULES:
   }
 );
 // ============================================
+// SMC TOP-DOWN DECISION ENGINE
+// ============================================
+
+app.post("/smc-top-down", async (req, res) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: "GEMINI_API_KEY is not configured."
+      });
+    }
+
+    const {
+      analysis_4h,
+      analysis_1h,
+      analysis_15m
+    } = req.body;
+
+    if (!analysis_4h || !analysis_1h || !analysis_15m) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "4H, 1H and 15M analyses are required."
+      });
+    }
+
+    const prompt = `
+You are the FINAL SMC TOP-DOWN TRADING COACH.
+
+You have received three completed analyses:
+
+4H ANALYSIS:
+${analysis_4h}
+
+1H ANALYSIS:
+${analysis_1h}
+
+15M ANALYSIS:
+${analysis_15m}
+
+Your job is to combine them using strict
+Smart Money Concepts top-down analysis.
+
+MANDATORY ORDER:
+
+4H → 1H → 15M
+
+Do not allow the 15M timeframe to override
+the higher-timeframe context by itself.
+
+========================================
+STEP 1 — 4H CONTEXT
+========================================
+
+Determine:
+
+- 4H bias
+- 4H structure
+- Major liquidity
+- Premium / discount
+- Important supply/demand zones
+
+========================================
+STEP 2 — 1H CONFIRMATION
+========================================
+
+Determine:
+
+- 1H bias
+- BOS / CHOCH
+- Liquidity sweep
+- Displacement
+- Relevant FVG / Order Block
+- Whether 1H agrees with the 4H context
+
+========================================
+STEP 3 — 15M ENTRY CONFIRMATION
+========================================
+
+Determine:
+
+- 15M structure
+- Liquidity sweep
+- CHOCH/BOS
+- Displacement
+- FVG
+- Order Block
+- Retracement
+- Whether a fresh entry actually exists
+
+========================================
+SETUP GRADING
+========================================
+
+Grade the setup:
+
+A+:
+Excellent top-down alignment.
+4H, 1H and 15M strongly support the same
+direction.
+Clear liquidity event.
+Clear structural confirmation.
+Strong displacement.
+Fresh retracement/entry.
+Good risk-to-reward.
+
+A:
+Strong setup with minor imperfection.
+
+B:
+Tradable structure but one important
+confirmation is weaker or incomplete.
+
+C:
+Weak setup. Significant uncertainty.
+
+D:
+Poor setup. Do not trade.
+
+IMPORTANT:
+
+A C or D setup should normally result in:
+
+NO TRADE — WAIT FOR CONFIRMATION.
+
+========================================
+FINAL SIGNAL RULES
+========================================
+
+BUY only when:
+
+- Higher-timeframe context supports the idea
+- 1H confirmation is valid
+- 15M provides valid entry confirmation
+- The setup is not already extended
+- Risk/reward is reasonable
+
+SELL only when the equivalent bearish
+conditions are confirmed.
+
+If the timeframes conflict:
+
+WAIT.
+
+If 15M has already made the move and there
+is no fresh entry:
+
+WAIT.
+
+If evidence is incomplete:
+
+WAIT.
+
+Never force a trade.
+
+========================================
+TRADE PLAN
+========================================
+
+Only provide Entry, Stop Loss and Take Profit
+when a valid setup is actually confirmed.
+
+If no valid setup exists:
+
+Entry: N/A
+Stop Loss: N/A
+Take Profit: N/A
+
+When a valid setup exists:
+
+ENTRY:
+Give the visible entry area.
+
+STOP LOSS:
+Place beyond logical invalidation/liquidity.
+
+TAKE PROFIT:
+Prefer visible opposing liquidity.
+
+RISK/REWARD:
+Calculate the approximate R:R if prices
+are available.
+
+========================================
+FINAL RESPONSE FORMAT
+========================================
+
+Return exactly:
+
+MARKET:
+
+4H BIAS:
+
+1H BIAS:
+
+15M BIAS:
+
+TOP-DOWN ALIGNMENT:
+Strong / Moderate / Weak / Conflicting
+
+LIQUIDITY STORY:
+
+STRUCTURE STORY:
+
+ENTRY CONFIRMATION:
+YES / NO
+
+SETUP GRADE:
+A+ / A / B / C / D
+
+FINAL SIGNAL:
+BUY / SELL / WAIT
+
+ENTRY:
+
+STOP LOSS:
+
+TAKE PROFIT:
+
+RISK/REWARD:
+
+CONFIDENCE:
+High / Medium / Low
+
+FINAL DECISION:
+
+TRADE REASONING:
+
+INVALIDATION:
+
+IMPORTANT:
+If there is no valid setup, the FINAL DECISION
+must be:
+
+NO TRADE — WAIT FOR CONFIRMATION
+
+Never invent missing prices.
+Never manufacture an entry.
+Never force a BUY or SELL.
+`;
+
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/interactions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify({
+          model: "gemini-3.6-flash",
+          input: prompt
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        error: data
+      });
+    }
+
+    let text = "";
+
+    if (Array.isArray(data.steps)) {
+      for (const step of data.steps) {
+        if (
+          step.type === "model_output" &&
+          Array.isArray(step.content)
+        ) {
+          for (const content of step.content) {
+            if (content.type === "text") {
+              text += content.text;
+            }
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      model: "gemini-3.6-flash",
+      analysis: text.trim(),
+      interaction_id: data.id || null
+    });
+
+  } catch (error) {
+    console.error(
+      "SMC top-down decision error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+// ============================================
 // HEALTH CHECK
 // ============================================
 
