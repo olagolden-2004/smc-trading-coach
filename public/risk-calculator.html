@@ -72,6 +72,7 @@
       color: white;
       font-size: 17px;
       font-weight: bold;
+      cursor: pointer;
     }
 
     .result {
@@ -82,12 +83,14 @@
     .result-row {
       display: flex;
       justify-content: space-between;
+      gap: 15px;
       border-bottom: 1px solid #26344d;
       padding: 10px 0;
     }
 
     .value {
       font-weight: bold;
+      text-align: right;
     }
 
     .warning {
@@ -97,6 +100,26 @@
       background: #241c0d;
       border: 1px solid #735a21;
       color: #f5d98b;
+      font-size: 13px;
+    }
+
+    .safe {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 9px;
+      background: #10251a;
+      border: 1px solid #285c3a;
+      color: #9be0b5;
+      font-size: 13px;
+    }
+
+    .error {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 9px;
+      background: #291416;
+      border: 1px solid #71343a;
+      color: #ffb4b4;
       font-size: 13px;
     }
   </style>
@@ -109,7 +132,7 @@
   <h1>SMC Risk Calculator</h1>
 
   <div class="subtitle">
-    Calculate risk before taking a trade
+    Calculate your trade risk before entering the market
   </div>
 
   <div class="card">
@@ -117,8 +140,8 @@
     <label>Instrument</label>
 
     <select id="instrument">
-      <option value="forex">Forex</option>
       <option value="xauusd">XAUUSD (Gold)</option>
+      <option value="forex">Forex</option>
     </select>
 
     <label>Account Balance ($)</label>
@@ -145,7 +168,7 @@
     <input
       type="number"
       id="entry"
-      placeholder="Example: 3350.00"
+      placeholder="Example: 3350"
       step="0.00001"
     >
 
@@ -154,7 +177,7 @@
     <input
       type="number"
       id="stopLoss"
-      placeholder="Example: 3335.00"
+      placeholder="Example: 3335"
       step="0.00001"
     >
 
@@ -163,7 +186,7 @@
     <input
       type="number"
       id="takeProfit"
-      placeholder="Example: 3380.00"
+      placeholder="Example: 3380"
       step="0.00001"
     >
 
@@ -173,19 +196,17 @@
 
   </div>
 
-
   <div class="card">
 
     <h2>Risk Results</h2>
 
-    <div id="results" class="result">
+    <div id="results">
       Enter your trade information above.
     </div>
 
   </div>
 
 </div>
-
 
 <script>
 
@@ -222,30 +243,43 @@ function calculateRisk() {
   const results =
     document.getElementById("results");
 
+  const BROKER_MIN_LOT = 0.01;
+
 
   if (
-    !balance ||
-    !riskPercent ||
-    !entry ||
-    !stopLoss ||
-    !takeProfit
+    !Number.isFinite(balance) ||
+    !Number.isFinite(riskPercent) ||
+    !Number.isFinite(entry) ||
+    !Number.isFinite(stopLoss) ||
+    !Number.isFinite(takeProfit)
   ) {
 
     results.innerHTML =
-      "Please enter all trade information.";
+      `<div class="error">
+        Please enter all trade information.
+      </div>`;
 
     return;
   }
 
 
-  if (
-    balance <= 0 ||
-    riskPercent <= 0 ||
-    riskPercent > 100
-  ) {
+  if (balance <= 0) {
 
     results.innerHTML =
-      "Please enter a valid account balance and risk percentage.";
+      `<div class="error">
+        Account balance must be greater than zero.
+      </div>`;
+
+    return;
+  }
+
+
+  if (riskPercent <= 0 || riskPercent > 100) {
+
+    results.innerHTML =
+      `<div class="error">
+        Risk percentage must be between 0.01% and 100%.
+      </div>`;
 
     return;
   }
@@ -254,7 +288,20 @@ function calculateRisk() {
   if (entry === stopLoss) {
 
     results.innerHTML =
-      "Entry and Stop Loss cannot be the same.";
+      `<div class="error">
+        Entry and Stop Loss cannot be the same.
+      </div>`;
+
+    return;
+  }
+
+
+  if (entry === takeProfit) {
+
+    results.innerHTML =
+      `<div class="error">
+        Entry and Take Profit cannot be the same.
+      </div>`;
 
     return;
   }
@@ -276,139 +323,228 @@ function calculateRisk() {
     targetDistance / stopDistance;
 
 
+  let calculatedLotSize;
+
+
   /*
-    Approximate position sizing.
+    XAUUSD calculation
 
-    Forex:
-    Standard lot = 100,000 units.
+    Assumption:
+    1 standard lot = 100 ounces.
 
-    XAUUSD:
-    Common contract assumption =
-    100 oz per standard lot.
-
-    Actual broker contract specifications
-    can differ, so the result should be
-    verified against the broker.
+    Risk per 1.00 lot =
+    stop distance × 100
   */
-
-  let lotSize;
-
 
   if (instrument === "xauusd") {
 
-    const valuePerLot =
+    const riskPerOneLot =
       stopDistance * 100;
 
-    lotSize =
-      riskAmount / valuePerLot;
+    calculatedLotSize =
+      riskAmount / riskPerOneLot;
 
   } else {
 
     /*
-      This is a simplified forex calculation.
+      Simplified forex calculation.
 
-      It assumes USD is approximately the
-      quote currency.
+      Assumes USD quote currency.
 
-      For cross pairs, actual pip value
-      depends on the pair and account currency.
+      Standard lot = 100,000 units.
+      Approximate pip value = $10 per lot.
     */
 
-    const pipSize =
-      0.0001;
+    const pipSize = 0.0001;
 
     const stopPips =
       stopDistance / pipSize;
 
-    const pipValuePerStandardLot =
-      10;
+    const pipValuePerLot = 10;
 
-    lotSize =
+    calculatedLotSize =
       riskAmount /
-      (stopPips * pipValuePerStandardLot);
+      (stopPips * pipValuePerLot);
   }
 
 
-  if (!isFinite(lotSize) || lotSize <= 0) {
+  if (
+    !Number.isFinite(calculatedLotSize) ||
+    calculatedLotSize <= 0
+  ) {
 
     results.innerHTML =
-      "Unable to calculate a valid lot size.";
+      `<div class="error">
+        Unable to calculate a valid lot size.
+      </div>`;
 
     return;
   }
 
 
+  /*
+    Keep the real calculated value.
+
+    DO NOT round 0.0067 to 0.00.
+  */
+
+  const exactLot =
+    calculatedLotSize;
+
+
+  /*
+    Calculate what would happen if the
+    broker minimum of 0.01 lot were used.
+  */
+
+  let riskAtMinimumLot;
+
+  if (instrument === "xauusd") {
+
+    riskAtMinimumLot =
+      stopDistance * 100 * BROKER_MIN_LOT;
+
+  } else {
+
+    const pipSize = 0.0001;
+
+    const stopPips =
+      stopDistance / pipSize;
+
+    riskAtMinimumLot =
+      stopPips * 10 * BROKER_MIN_LOT;
+  }
+
+
+  const minimumLotExceedsRisk =
+    riskAtMinimumLot > riskAmount;
+
+
+  let lotMessage = "";
+
+
+  if (exactLot < BROKER_MIN_LOT) {
+
+    lotMessage = `
+      <div class="warning">
+        <strong>Broker minimum warning:</strong><br><br>
+
+        Your calculated lot size is
+        <strong>${exactLot.toFixed(4)}</strong> lots,
+        which is below your broker minimum of
+        <strong>0.01 lot</strong>.<br><br>
+
+        Using 0.01 lot would risk approximately
+        <strong>$${riskAtMinimumLot.toFixed(2)}</strong>
+        instead of your selected
+        <strong>$${riskAmount.toFixed(2)}</strong> risk.<br><br>
+
+        The calculator will NOT automatically increase
+        your lot size to 0.01.
+      </div>
+    `;
+
+  } else {
+
+    lotMessage = `
+      <div class="safe">
+        The calculated lot size is above your
+        broker minimum of 0.01 lot.
+      </div>
+    `;
+  }
+
+
   results.innerHTML = `
 
-    <div class="result-row">
-      <span>Account Balance</span>
-      <span class="value">
-        $${balance.toFixed(2)}
-      </span>
+    <div class="result">
+
+      <div class="result-row">
+        <span>Account Balance</span>
+        <span class="value">
+          $${balance.toFixed(2)}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Risk</span>
+        <span class="value">
+          ${riskPercent.toFixed(2)}%
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Maximum Risk</span>
+        <span class="value">
+          $${riskAmount.toFixed(2)}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Entry</span>
+        <span class="value">
+          ${entry}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Stop Loss</span>
+        <span class="value">
+          ${stopLoss}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Take Profit</span>
+        <span class="value">
+          ${takeProfit}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Stop Distance</span>
+        <span class="value">
+          ${stopDistance.toFixed(5)}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Potential Reward</span>
+        <span class="value">
+          ${rewardRisk.toFixed(2)}R
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Calculated Lot Size</span>
+        <span class="value">
+          ${exactLot.toFixed(4)}
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Broker Minimum</span>
+        <span class="value">
+          0.01 lot
+        </span>
+      </div>
+
+      <div class="result-row">
+        <span>Risk at 0.01 Lot</span>
+        <span class="value">
+          $${riskAtMinimumLot.toFixed(2)}
+        </span>
+      </div>
+
     </div>
 
-    <div class="result-row">
-      <span>Risk</span>
-      <span class="value">
-        ${riskPercent.toFixed(2)}%
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Maximum Risk</span>
-      <span class="value">
-        $${riskAmount.toFixed(2)}
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Entry</span>
-      <span class="value">
-        ${entry}
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Stop Loss</span>
-      <span class="value">
-        ${stopLoss}
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Take Profit</span>
-      <span class="value">
-        ${takeProfit}
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Stop Distance</span>
-      <span class="value">
-        ${stopDistance.toFixed(5)}
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Potential Reward</span>
-      <span class="value">
-        ${rewardRisk.toFixed(2)}R
-      </span>
-    </div>
-
-    <div class="result-row">
-      <span>Suggested Lot Size</span>
-      <span class="value">
-        ${lotSize.toFixed(2)}
-      </span>
-    </div>
+    ${lotMessage}
 
     <div class="warning">
-      This calculator is for risk-management
-      planning only. Verify the lot size,
-      contract size, pip value and margin
-      requirements with your broker before
-      placing a trade.
+      This calculator is for risk-management planning.
+      Broker contract specifications can differ.
+      Always verify the final lot size and risk with
+      your broker before placing a trade.
     </div>
 
   `;
