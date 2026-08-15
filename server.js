@@ -56,7 +56,7 @@ setInterval(
 // Check once when the server starts
 checkExpiredSlots();
 // ============================================
-// GEMINI FREE API TEST
+// GEMINI FREE API TEST - INTERACTIONS API
 // ============================================
 
 app.get("/gemini-test", async (req, res) => {
@@ -71,7 +71,7 @@ app.get("/gemini-test", async (req, res) => {
     }
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/interactions",
       {
         method: "POST",
         headers: {
@@ -79,15 +79,8 @@ app.get("/gemini-test", async (req, res) => {
           "x-goog-api-key": apiKey
         },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: "Reply with exactly: GEMINI TEST SUCCESS"
-                }
-              ]
-            }
-          ]
+          model: "gemini-2.5-flash-lite",
+          input: "Reply with exactly: GEMINI TEST SUCCESS"
         })
       }
     );
@@ -101,13 +94,28 @@ app.get("/gemini-test", async (req, res) => {
       });
     }
 
-    const text =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let text = "";
+
+    if (Array.isArray(data.steps)) {
+      for (const step of data.steps) {
+        if (
+          step.type === "model_output" &&
+          Array.isArray(step.content)
+        ) {
+          for (const content of step.content) {
+            if (content.type === "text") {
+              text += content.text;
+            }
+          }
+        }
+      }
+    }
 
     res.json({
       success: true,
       model: "gemini-2.5-flash-lite",
-      response: text.trim()
+      response: text.trim(),
+      interaction_id: data.id || null
     });
 
   } catch (error) {
