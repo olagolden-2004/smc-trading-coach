@@ -1,5 +1,6 @@
 const express = require("express");
 const { createClient } = require("@supabase/supabase-js");
+const multer = require("multer");
 require("dotenv").config();
 
 const app = express();
@@ -127,6 +128,113 @@ app.get("/gemini-test", async (req, res) => {
     });
   }
 });
+// ============================================
+// GEMINI CHART IMAGE TEST
+// ============================================
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024
+  }
+});
+
+app.post(
+  "/gemini-image-test",
+  upload.single("chart"),
+  async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "GEMINI_API_KEY is not configured."
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "Please upload a chart image."
+        });
+      }
+
+      const base64Image =
+        req.file.buffer.toString("base64");
+
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            model: "gemini-2.5-flash-lite",
+            input: [
+              {
+                type: "image",
+                data: base64Image,
+                mime_type: req.file.mimetype
+              },
+              {
+                type: "text",
+                text:
+                  "Look at this trading chart. Describe only what you can clearly see. Identify the market, timeframe, current price if visible, and general price direction. Do not give a trade signal."
+              }
+            ]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: data
+        });
+      }
+
+      let text = "";
+
+      if (Array.isArray(data.steps)) {
+        for (const step of data.steps) {
+          if (
+            step.type === "model_output" &&
+            Array.isArray(step.content)
+          ) {
+            for (const content of step.content) {
+              if (content.type === "text") {
+                text += content.text;
+              }
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        model: "gemini-2.5-flash-lite",
+        analysis: text.trim(),
+        interaction_id: data.id || null
+      });
+
+    } catch (error) {
+      console.error(
+        "Gemini image test error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
 // ============================================
 // HEALTH CHECK
 // ============================================
