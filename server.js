@@ -172,7 +172,7 @@ app.post(
             "x-goog-api-key": apiKey
           },
           body: JSON.stringify({
-            model: "gemini-2.5-flash-lite",
+            model: "gemini-3.6-flash",
             input: [
               {
                 type: "image",
@@ -217,7 +217,7 @@ app.post(
 
       res.json({
         success: true,
-        model: "gemini-2.5-flash-lite",
+        model: "gemini-3.6-flash",
         analysis: text.trim(),
         interaction_id: data.id || null
       });
