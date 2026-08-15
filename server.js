@@ -14,10 +14,14 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
   process.exit(1);
 }
 
-const supabase = createClient(
+const supabaseAdmin = createClient(
   supabaseUrl,
   supabaseServiceRoleKey
 );
+
+// ============================================
+// HEALTH CHECK
+// ============================================
 
 app.get("/", (req, res) => {
   res.json({
@@ -29,7 +33,7 @@ app.get("/", (req, res) => {
 
 app.get("/health", async (req, res) => {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("analysis_slots")
       .select("id")
       .limit(1);
@@ -52,6 +56,105 @@ app.get("/health", async (req, res) => {
     });
   }
 });
+
+// ============================================
+// SIGN UP
+// ============================================
+
+app.post("/auth/signup", async (req, res) => {
+  try {
+    const { email, password, full_name } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "Email and password are required."
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "Password must be at least 6 characters."
+      });
+    }
+
+    const { data, error } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: full_name || ""
+        }
+      });
+
+    if (error) {
+      return res.status(400).json({
+        error: error.message
+      });
+    }
+
+    res.status(201).json({
+      message: "Account created successfully.",
+      user: {
+        id: data.user.id,
+        email: data.user.email
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// LOGIN
+// ============================================
+
+app.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        error: "Email and password are required."
+      });
+    }
+
+    const supabaseAuth = createClient(
+      supabaseUrl,
+      supabaseAdmin.auth
+        ? process.env.SUPABASE_SERVICE_ROLE_KEY
+        : process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    const { data, error } =
+      await supabaseAuth.auth.signInWithPassword({
+        email,
+        password
+      });
+
+    if (error) {
+      return res.status(401).json({
+        error: "Invalid email or password."
+      });
+    }
+
+    res.json({
+      message: "Login successful.",
+      session: data.session,
+      user: data.user
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// START SERVER
+// ============================================
 
 const PORT = process.env.PORT || 3000;
 
