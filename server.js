@@ -390,6 +390,189 @@ say "INSUFFICIENT 4H EVIDENCE" instead of guessing.
   }
 );
 // ============================================
+// SMC 1H ANALYSIS ENGINE
+// ============================================
+
+app.post(
+  "/smc-analysis-1h",
+  upload.single("chart"),
+  async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "GEMINI_API_KEY is not configured."
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "Please upload a 1H chart."
+        });
+      }
+
+      const base64Image =
+        req.file.buffer.toString("base64");
+
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            model: "gemini-3.6-flash",
+            input: [
+              {
+                type: "image",
+                data: base64Image,
+                mime_type: req.file.mimetype
+              },
+              {
+                type: "text",
+                text: `
+You are the 1H Smart Money Concepts (SMC)
+confirmation engine.
+
+Analyze ONLY the 1H timeframe shown in the
+uploaded chart.
+
+The 1H analysis must refine the higher-timeframe
+context. Do NOT perform the 15M entry analysis.
+
+Use only information clearly visible on the chart.
+Never invent prices, liquidity, BOS, CHOCH, FVGs,
+or Order Blocks.
+
+Return exactly this structure:
+
+MARKET:
+Identify the instrument if visible.
+
+TIMEFRAME:
+Confirm the chart timeframe.
+
+1H BIAS:
+Bullish / Bearish / Neutral
+
+1H MARKET STRUCTURE:
+Identify visible:
+- Higher Highs
+- Higher Lows
+- Lower Highs
+- Lower Lows
+- BOS
+- CHOCH
+
+1H LIQUIDITY:
+Identify visible:
+- Buy-side liquidity
+- Sell-side liquidity
+- Equal highs
+- Equal lows
+- Obvious liquidity pools
+
+1H LIQUIDITY SWEEP:
+State whether a clear liquidity sweep is visible.
+If none is confirmed, say:
+NO CLEAR LIQUIDITY SWEEP
+
+1H BOS / CHOCH CONFIRMATION:
+Explain whether there is a clear bullish or bearish
+BOS/CHOCH.
+
+1H DISPLACEMENT:
+Identify whether strong displacement is visible.
+Explain the direction if confirmed.
+
+1H KEY ZONES:
+Identify visible:
+- Order Blocks
+- Fair Value Gaps
+- Supply
+- Demand
+
+1H PREMIUM / DISCOUNT:
+Explain whether current price is in premium,
+discount, or equilibrium relative to the relevant
+visible range.
+
+1H IMPORTANT LEVELS:
+List important visible highs, lows and liquidity
+levels.
+
+1H SMC CONCLUSION:
+Explain the dominant 1H order-flow context.
+
+CONFIDENCE:
+High / Medium / Low
+
+IMPORTANT RULE:
+Do not create a trade entry.
+Do not analyze the 15M timeframe.
+
+If evidence is unclear, say:
+INSUFFICIENT 1H EVIDENCE
+`
+              }
+            ]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: data
+        });
+      }
+
+      let text = "";
+
+      if (Array.isArray(data.steps)) {
+        for (const step of data.steps) {
+          if (
+            step.type === "model_output" &&
+            Array.isArray(step.content)
+          ) {
+            for (const content of step.content) {
+              if (content.type === "text") {
+                text += content.text;
+              }
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        timeframe: "1H",
+        model: "gemini-3.6-flash",
+        analysis: text.trim(),
+        interaction_id: data.id || null
+      });
+
+    } catch (error) {
+      console.error(
+        "1H SMC analysis error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+// ============================================
 // HEALTH CHECK
 // ============================================
 
