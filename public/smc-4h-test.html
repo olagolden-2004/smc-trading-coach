@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMC 4H Test</title>
+</head>
+
+<body>
+  <h2>SMC 4H Analysis Test</h2>
+
+  <p>Select your 4H TradingView chart:</p>
+
+  <input
+    type="file"
+    id="chart"
+    accept="image/*"
+  >
+
+  <br><br>
+
+  <button onclick="analyze4H()">
+    Analyze 4H
+  </button>
+
+  <pre id="result">Waiting...</pre>
+
+  <script>
+    async function analyze4H() {
+      const fileInput =
+        document.getElementById("chart");
+
+      const result =
+        document.getElementById("result");
+
+      if (!fileInput.files.length) {
+        result.textContent =
+          "Please select a 4H chart first.";
+        return;
+      }
+
+      result.textContent =
+        "Analyzing 4H chart...";
+
+      const formData = new FormData();
+
+      formData.append(
+        "chart",
+        fileInput.files[0]
+      );
+
+      try {
+        const response = await fetch(
+          "/smc-analysis-4h",
+          {
+            method: "POST",
+            body: formData
+          }
+        );
+
+        const data = await response.json();
+
+        result.textContent =
+          JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        result.textContent =
+          "Error: " + error.message;
+      }
+    }
+  </script>
+</body>
+  </html>
