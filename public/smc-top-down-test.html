@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMC Top-Down Test</title>
+</head>
+
+<body>
+  <h2>SMC Top-Down Decision Test</h2>
+
+  <p>Paste your 4H analysis:</p>
+  <textarea id="analysis4h" rows="12" style="width:100%;"></textarea>
+
+  <p>Paste your 1H analysis:</p>
+  <textarea id="analysis1h" rows="12" style="width:100%;"></textarea>
+
+  <p>Paste your 15M analysis:</p>
+  <textarea id="analysis15m" rows="12" style="width:100%;"></textarea>
+
+  <br><br>
+
+  <button onclick="runTopDown()">
+    Run Top-Down Analysis
+  </button>
+
+  <pre id="result">Waiting...</pre>
+
+  <script>
+    async function runTopDown() {
+      const analysis4h =
+        document.getElementById("analysis4h").value;
+
+      const analysis1h =
+        document.getElementById("analysis1h").value;
+
+      const analysis15m =
+        document.getElementById("analysis15m").value;
+
+      const result =
+        document.getElementById("result");
+
+      if (!analysis4h ||
+          !analysis1h ||
+          !analysis15m) {
+        result.textContent =
+          "Please provide all three analyses.";
+        return;
+      }
+
+      result.textContent =
+        "Running final SMC top-down analysis...";
+
+      try {
+        const response = await fetch(
+          "/smc-top-down",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              analysis_4h: analysis4h,
+              analysis_1h: analysis1h,
+              analysis_15m: analysis15m
+            })
+          }
+        );
+
+        const data = await response.json();
+
+        result.textContent =
+          JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        result.textContent =
+          "Error: " + error.message;
+      }
+    }
+  </script>
+</body>
+  </html>
