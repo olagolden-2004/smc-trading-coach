@@ -1,1 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <title>SMC Trading Coach</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1220;
+      color: #ffffff;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .header h1 {
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: #aab4c3;
+    }
+
+    .card {
+      background: #111b2e;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+      border: 1px solid #26344d;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 19px;
+    }
+
+    .upload {
+      display: block;
+      width: 100%;
+      padding: 15px;
+      border: 1px dashed #52627a;
+      border-radius: 10px;
+      background: #0d1728;
+      color: #ffffff;
+    }
+
+    .file-name {
+      margin-top: 8px;
+      color: #9da9ba;
+      font-size: 13px;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      text-align: center;
+      margin: 18px 0;
+      color: #aab4c3;
+    }
+
+    .result {
+      white-space: pre-wrap;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .warning {
+      background: #241c0d;
+      border: 1px solid #735a21;
+      padding: 14px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      color: #f5d98b;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>SMC Trading Coach</h1>
+    <p>4H → 1H → 15M Smart Money Concepts Analysis</p>
+  </div>
+
+  <div class="warning">
+    The Coach does not guarantee profitable trades.
+    Always manage risk and verify the analysis yourself.
+  </div>
+
+  <!-- 4H -->
+  <div class="card">
+    <h2>📊 4H Chart</h2>
+
+    <input
+      class="upload"
+      type="file"
+      id="chart4h"
+      accept="image/*"
+      onchange="showFileName('chart4h','name4h')"
+    >
+
+    <div id="name4h" class="file-name">
+      No chart selected
+    </div>
+  </div>
+
+  <!-- 1H -->
+  <div class="card">
+    <h2>📊 1H Chart</h2>
+
+    <input
+      class="upload"
+      type="file"
+      id="chart1h"
+      accept="image/*"
+      onchange="showFileName('chart1h','name1h')"
+    >
+
+    <div id="name1h" class="file-name">
+      No chart selected
+    </div>
+  </div>
+
+  <!-- 15M -->
+  <div class="card">
+    <h2>📊 15M Chart</h2>
+
+    <input
+      class="upload"
+      type="file"
+      id="chart15m"
+      accept="image/*"
+      onchange="showFileName('chart15m','name15m')"
+    >
+
+    <div id="name15m" class="file-name">
+      No chart selected
+    </div>
+  </div>
+
+  <!-- Analyze -->
+  <div class="card">
+
+    <button
+      id="analyzeButton"
+      onclick="runCoach()"
+    >
+      ANALYZE TRADE
+    </button>
+
+    <div id="status" class="status"></div>
+
+  </div>
+
+  <!-- Results -->
+  <div
+    id="resultCard"
+    class="card hidden"
+  >
+
+    <h2>🤖 SMC Coach Result</h2>
+
+    <div
+      id="result"
+      class="result"
+    ></div>
+
+  </div>
+
+</div>
+
+<script>
+
+function showFileName(inputId, outputId) {
+
+  const input =
+    document.getElementById(inputId);
+
+  const output =
+    document.getElementById(outputId);
+
+  if (input.files.length > 0) {
+
+    output.textContent =
+      input.files[0].name;
+
+  } else {
+
+    output.textContent =
+      "No chart selected";
+
+  }
+}
+
+
+async function runCoach() {
+
+  const chart4h =
+    document.getElementById("chart4h").files[0];
+
+  const chart1h =
+    document.getElementById("chart1h").files[0];
+
+  const chart15m =
+    document.getElementById("chart15m").files[0];
+
+  const button =
+    document.getElementById("analyzeButton");
+
+  const status =
+    document.getElementById("status");
+
+  const resultCard =
+    document.getElementById("resultCard");
+
+  const result =
+    document.getElementById("result");
+
+
+  if (!chart4h ||
+      !chart1h ||
+      !chart15m) {
+
+    alert(
+      "Please upload all three charts: 4H, 1H and 15M."
+    );
+
+    return;
+
+  }
+
+
+  button.disabled = true;
+
+  status.textContent =
+    "Analyzing 4H → 1H → 15M...";
+
+  resultCard.classList.remove("hidden");
+
+  result.textContent =
+    "SMC Coach is analyzing your charts.\n\nPlease wait...";
+
+
+  const formData =
+    new FormData();
+
+  formData.append(
+    "chart_4h",
+    chart4h
+  );
+
+  formData.append(
+    "chart_1h",
+    chart1h
+  );
+
+  formData.append(
+    "chart_15m",
+    chart15m
+  );
+
+
+  try {
+
+    const response =
+      await fetch(
+        "/smc-coach",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      result.textContent =
+        "Error:\n\n" +
+        JSON.stringify(
+          data,
+          null,
+          2
+        );
+
+      return;
+
+    }
+
+
+    result.textContent =
+      data.analysis ||
+      JSON.stringify(
+        data,
+        null,
+        2
+      );
+
+
+  } catch (error) {
+
+    result.textContent =
+      "Connection error:\n\n" +
+      error.message;
+
+  } finally {
+
+    button.disabled = false;
+
+    status.textContent =
+      "Analysis complete.";
+
+  }
+
+}
+
+</script>
+
+</body>
+  </html>
