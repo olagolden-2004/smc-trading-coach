@@ -573,6 +573,220 @@ INSUFFICIENT 1H EVIDENCE
   }
 );
 // ============================================
+// SMC 15M ENTRY CONFIRMATION ENGINE
+// ============================================
+
+app.post(
+  "/smc-analysis-15m",
+  upload.single("chart"),
+  async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "GEMINI_API_KEY is not configured."
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: "Please upload a 15M chart."
+        });
+      }
+
+      const base64Image =
+        req.file.buffer.toString("base64");
+
+      const response = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/interactions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            model: "gemini-3.6-flash",
+            input: [
+              {
+                type: "image",
+                data: base64Image,
+                mime_type: req.file.mimetype
+              },
+              {
+                type: "text",
+                text: `
+You are the 15M Smart Money Concepts (SMC)
+entry-confirmation engine.
+
+Analyze ONLY the 15M timeframe shown in the
+uploaded chart.
+
+The purpose of this analysis is to determine
+whether there is a valid lower-timeframe
+confirmation for a trade.
+
+Do NOT assume a trade exists.
+
+Use only information clearly visible on the chart.
+Never invent prices, structure, liquidity, FVGs,
+Order Blocks, or confirmations.
+
+Return exactly this structure:
+
+MARKET:
+Identify the instrument if visible.
+
+TIMEFRAME:
+Confirm the chart timeframe.
+
+15M BIAS:
+Bullish / Bearish / Neutral
+
+15M MARKET STRUCTURE:
+Identify visible:
+- Higher Highs
+- Higher Lows
+- Lower Highs
+- Lower Lows
+- BOS
+- CHOCH
+
+LIQUIDITY:
+Identify visible:
+- Buy-side liquidity
+- Sell-side liquidity
+- Equal highs
+- Equal lows
+- Obvious liquidity pools
+
+LIQUIDITY SWEEP:
+State whether a clear sweep is confirmed.
+
+If no valid sweep is visible:
+NO CONFIRMED LIQUIDITY SWEEP
+
+CHOCH / BOS:
+State whether a valid structural confirmation
+occurred after the liquidity event.
+
+DISPLACEMENT:
+State whether strong displacement is confirmed.
+Give the direction.
+
+FAIR VALUE GAP:
+Identify any relevant visible FVG.
+
+ORDER BLOCK:
+Identify any relevant visible Order Block.
+
+RETRACEMENT:
+State whether price has retraced into a relevant
+FVG, Order Block, supply, or demand zone.
+
+ENTRY CONFIRMATION:
+YES / NO
+
+If YES:
+Explain the exact visible confirmation.
+
+If NO:
+Explain what confirmation is missing.
+
+ENTRY AREA:
+Only provide an entry area if a valid confirmation
+is clearly visible.
+
+STOP LOSS AREA:
+Only provide a logical invalidation area if a
+valid setup is confirmed.
+
+TAKE PROFIT / LIQUIDITY TARGET:
+Only provide a target if a valid setup is confirmed.
+Prefer visible opposing liquidity.
+
+RISK WARNING:
+Mention if the setup is too extended, unclear,
+or lacks confirmation.
+
+15M CONCLUSION:
+Give a short explanation of whether the 15M chart
+currently provides a valid entry confirmation.
+
+CONFIDENCE:
+High / Medium / Low
+
+IMPORTANT RULES:
+
+1. Do not force a trade.
+2. Do not create an entry merely because price is
+   near an Order Block or FVG.
+3. A liquidity sweep alone is NOT enough.
+4. A BOS/CHOCH alone is NOT enough.
+5. Prefer liquidity sweep + displacement +
+   structural confirmation.
+6. If confirmation is incomplete, return:
+   NO TRADE — WAIT FOR CONFIRMATION.
+7. Never invent information that is not clearly
+   visible on the chart.
+`
+              }
+            ]
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          success: false,
+          error: data
+        });
+      }
+
+      let text = "";
+
+      if (Array.isArray(data.steps)) {
+        for (const step of data.steps) {
+          if (
+            step.type === "model_output" &&
+            Array.isArray(step.content)
+          ) {
+            for (const content of step.content) {
+              if (content.type === "text") {
+                text += content.text;
+              }
+            }
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        timeframe: "15M",
+        model: "gemini-3.6-flash",
+        analysis: text.trim(),
+        interaction_id: data.id || null
+      });
+
+    } catch (error) {
+      console.error(
+        "15M SMC analysis error:",
+        error
+      );
+
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+);
+// ============================================
 // HEALTH CHECK
 // ============================================
 
