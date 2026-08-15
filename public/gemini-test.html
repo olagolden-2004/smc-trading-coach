@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Chart Test</title>
+</head>
+
+<body>
+  <h2>Gemini Chart Image Test</h2>
+
+  <p>Select one trading chart:</p>
+
+  <input
+    type="file"
+    id="chart"
+    accept="image/*"
+  >
+
+  <br><br>
+
+  <button onclick="testChart()">
+    Test Chart
+  </button>
+
+  <pre id="result">Waiting...</pre>
+
+  <script>
+    async function testChart() {
+      const fileInput =
+        document.getElementById("chart");
+
+      const result =
+        document.getElementById("result");
+
+      if (!fileInput.files.length) {
+        result.textContent =
+          "Please select a chart image first.";
+        return;
+      }
+
+      result.textContent =
+        "Sending chart to Gemini...";
+
+      const formData = new FormData();
+
+      formData.append(
+        "chart",
+        fileInput.files[0]
+      );
+
+      try {
+        const response = await fetch(
+          "/gemini-image-test",
+          {
+            method: "POST",
+            body: formData
+          }
+        );
+
+        const data = await response.json();
+
+        result.textContent =
+          JSON.stringify(data, null, 2);
+
+      } catch (error) {
+        result.textContent =
+          "Error: " + error.message;
+      }
+    }
+  </script>
+</body>
+        </html>
