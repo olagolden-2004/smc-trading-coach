@@ -143,7 +143,35 @@
       <option value="xauusd">XAUUSD (Gold)</option>
       <option value="forex">Forex</option>
     </select>
+<div id="contractSizeContainer">
 
+  <label>XAUUSD Contract Size (oz)</label>
+
+  <input
+    type="number"
+    id="contractSize"
+    value="100"
+    min="0.01"
+    step="0.01"
+    placeholder="Example: 100"
+  >
+
+  <div class="subtitle" style="text-align:left; margin:8px 0 0 0;">
+    Enter the contract size specified by your broker.
+    Common XAUUSD contract sizes include 100 oz, 10 oz, or 1 oz.
+  </div>
+
+</div>
+  <label>Broker Minimum Lot</label>
+
+<input
+  type="number"
+  id="brokerMinLot"
+  value="0.01"
+  min="0.001"
+  step="0.001"
+  placeholder="Example: 0.01"
+> 
     <label>Account Balance ($)</label>
 
     <input
@@ -243,7 +271,10 @@ function calculateRisk() {
   const results =
     document.getElementById("results");
 
-  const BROKER_MIN_LOT = 0.01;
+  const BROKER_MIN_LOT =
+  parseFloat(
+    document.getElementById("brokerMinLot").value
+  );
 
 
   if (
@@ -325,47 +356,66 @@ function calculateRisk() {
 
   let calculatedLotSize;
 
+/*
+  XAUUSD calculation
+
+  Contract size is the number of ounces
+  represented by 1.00 standard lot.
+
+  Example:
+  100 = 1 lot represents 100 ounces
+  10  = 1 lot represents 10 ounces
+  1   = 1 lot represents 1 ounce
+
+  This makes the calculator adaptable
+  to different broker specifications.
+*/
+
+if (instrument === "xauusd") {
+
+  const contractSize =
+    Number(
+      document.getElementById("contractSize")?.value
+    ) || 100;
+
+  if (contractSize <= 0) {
+
+    results.innerHTML =
+      `<div class="error">
+        Please enter a valid XAUUSD contract size.
+      </div>`;
+
+    return;
+  }
+
+  const riskPerOneLot =
+    stopDistance * contractSize;
+
+  calculatedLotSize =
+    riskAmount / riskPerOneLot;
+
+} else {
 
   /*
-    XAUUSD calculation
+    Simplified forex calculation.
 
-    Assumption:
-    1 standard lot = 100 ounces.
+    Assumes USD quote currency.
 
-    Risk per 1.00 lot =
-    stop distance × 100
+    Standard lot = 100,000 units.
+    Approximate pip value = $10 per lot.
   */
 
-  if (instrument === "xauusd") {
+  const pipSize = 0.0001;
 
-    const riskPerOneLot =
-      stopDistance * 100;
+  const stopPips =
+    stopDistance / pipSize;
 
-    calculatedLotSize =
-      riskAmount / riskPerOneLot;
+  const pipValuePerLot = 10;
 
-  } else {
-
-    /*
-      Simplified forex calculation.
-
-      Assumes USD quote currency.
-
-      Standard lot = 100,000 units.
-      Approximate pip value = $10 per lot.
-    */
-
-    const pipSize = 0.0001;
-
-    const stopPips =
-      stopDistance / pipSize;
-
-    const pipValuePerLot = 10;
-
-    calculatedLotSize =
-      riskAmount /
-      (stopPips * pipValuePerLot);
-  }
+  calculatedLotSize =
+    riskAmount /
+    (stopPips * pipValuePerLot);
+}
 
 
   if (
@@ -401,10 +451,17 @@ function calculateRisk() {
 
   if (instrument === "xauusd") {
 
-    riskAtMinimumLot =
-      stopDistance * 100 * BROKER_MIN_LOT;
+  const contractSize =
+    Number(
+      document.getElementById("contractSize")?.value
+    ) || 100;
 
-  } else {
+  riskAtMinimumLot =
+    stopDistance *
+    contractSize *
+    BROKER_MIN_LOT;
+
+} else {
 
     const pipSize = 0.0001;
 
