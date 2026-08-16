@@ -222,30 +222,30 @@
 
       <div class="features">
 
-        <div class="feature">
-          <h3>📊 AI Analysis</h3>
-          <p>4H → 1H → 15M</p>
-        </div>
+  <div class="feature" onclick="openCoach()">
+    <h3>📊 AI Analysis</h3>
+    <p>4H → 1H → 15M</p>
+  </div>
 
-        <div class="feature">
-          <h3>🧮 Risk Calculator</h3>
-          <p>Manage your risk</p>
-        </div>
+  <div class="feature" onclick="openRiskCalculator()">
+    <h3>🧮 Risk Calculator</h3>
+    <p>Manage your risk</p>
+  </div>
 
-        <div class="feature">
-          <h3>📐 Lot Size</h3>
-          <p>Calculate position size</p>
-        </div>
+  <div class="feature" onclick="openRiskCalculator()">
+    <h3>📐 Lot Size</h3>
+    <p>Calculate position size</p>
+  </div>
 
-        <div class="feature">
-          <h3>📰 News</h3>
-          <p>Economic news intelligence</p>
-        </div>
+  <div class="feature" onclick="openNews()">
+    <h3>📰 News</h3>
+    <p>Economic news intelligence</p>
+  </div>
 
-        <div class="feature">
-          <h3>💬 Support</h3>
-          <p>Contact the owner</p>
-        </div>
+  <div class="feature" onclick="openSupport()">
+    <h3>💬 Support</h3>
+    <p>Contact the owner</p>
+  </div>
 
       </div>
 
@@ -410,7 +410,21 @@ function logout() {
   ).classList.remove("hidden");
 
 }
+function openCoach() {
+  window.location.href = "/coach.html";
+}
 
+function openRiskCalculator() {
+  window.location.href = "/risk-calculator.html";
+}
+
+function openNews() {
+  window.location.href = "/news.html";
+}
+
+function openSupport() {
+  window.location.href = "/support.html";
+  }
 </script>
 
 </body>
