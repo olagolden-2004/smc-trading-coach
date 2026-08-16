@@ -883,36 +883,51 @@ Determine:
 SETUP GRADING
 ========================================
 
-Grade the setup:
-
 A+:
-Excellent top-down alignment.
-4H, 1H and 15M strongly support the same
-direction.
-Clear liquidity event.
-Clear structural confirmation.
-Strong displacement.
-Fresh retracement/entry.
-Good risk-to-reward.
+Only when ALL major conditions are confirmed:
+
+- Strong higher-timeframe context
+- 4H and 1H directional agreement
+- Clear liquidity sweep
+- Clear BOS/CHOCH after the sweep
+- Strong displacement
+- 15M confirmation
+- Fresh retracement into a relevant FVG/Order Block
+- Entry is not extended
+- Clear invalidation
+- Good risk-to-reward
 
 A:
-Strong setup with minor imperfection.
+Strong setup with one minor imperfection,
+but the core confirmation remains valid.
 
 B:
-Tradable structure but one important
+Potentially tradable setup, but one important
 confirmation is weaker or incomplete.
 
 C:
-Weak setup. Significant uncertainty.
+Weak setup with significant uncertainty,
+missing confirmation, or poor location.
 
 D:
-Poor setup. Do not trade.
+Poor setup. Major confirmation is missing,
+timeframes conflict, or entry is too extended.
 
 IMPORTANT:
 
-A C or D setup should normally result in:
+A+ MUST NOT be given if the 15M entry is already
+extended or there is no fresh retracement.
+
+A or A+ MUST NOT be given when the required
+liquidity + structure + displacement confirmation
+is missing.
+
+C or D should normally result in:
 
 NO TRADE — WAIT FOR CONFIRMATION.
+
+Never upgrade a setup simply because the market
+direction appears obvious.
 
 ========================================
 FINAL SIGNAL RULES
