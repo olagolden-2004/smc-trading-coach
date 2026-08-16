@@ -811,6 +811,43 @@ function calculateRisk() {
 
 updateInstrumentFields();
 
+const savedTradePlan =
+  localStorage.getItem("aiTradePlan");
+
+if (savedTradePlan) {
+
+  try {
+
+    const tradePlan =
+      JSON.parse(savedTradePlan);
+
+    if (Number.isFinite(tradePlan.entry)) {
+      document.getElementById("entry").value =
+        tradePlan.entry;
+    }
+
+    if (Number.isFinite(tradePlan.stopLoss)) {
+      document.getElementById("stopLoss").value =
+        tradePlan.stopLoss;
+    }
+
+    if (Number.isFinite(tradePlan.takeProfit)) {
+      document.getElementById("takeProfit").value =
+        tradePlan.takeProfit;
+    }
+
+    localStorage.removeItem("aiTradePlan");
+
+  } catch (error) {
+
+    console.error(
+      "Unable to load AI Trade Plan:",
+      error
+    );
+
+  }
+}
+
 </script>
 
 </body>
