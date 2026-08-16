@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>SMC News Intelligence</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1220;
+      color: #ffffff;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #aab4c3;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: #111b2e;
+      border: 1px solid #26344d;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 7px;
+      font-weight: bold;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 13px;
+      border-radius: 9px;
+      border: 1px solid #3b4b65;
+      background: #0d1728;
+      color: #ffffff;
+      font-size: 16px;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 20px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .result {
+      white-space: pre-wrap;
+      line-height: 1.7;
+      color: #e5edf8;
+    }
+
+    .info {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 9px;
+      background: #102039;
+      border: 1px solid #2b4c76;
+      color: #bcd7f5;
+      font-size: 13px;
+    }
+
+    .error {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 9px;
+      background: #291416;
+      border: 1px solid #71343a;
+      color: #ffb4b4;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>📰 SMC News Intelligence</h1>
+
+  <div class="subtitle">
+    Economic news analysis and trading filter
+  </div>
+
+  <div class="card">
+
+    <label>Currency</label>
+
+    <select id="currency">
+      <option value="USD">USD</option>
+      <option value="EUR">EUR</option>
+      <option value="GBP">GBP</option>
+      <option value="JPY">JPY</option>
+      <option value="AUD">AUD</option>
+      <option value="CAD">CAD</option>
+      <option value="CHF">CHF</option>
+      <option value="NZD">NZD</option>
+    </select>
+
+
+    <label>News / Economic Event</label>
+
+    <input
+      type="text"
+      id="event"
+      placeholder="Example: US CPI"
+    >
+
+
+    <label>Previous</label>
+
+    <input
+      type="text"
+      id="previous"
+      placeholder="Example: 2.7%"
+    >
+
+
+    <label>Forecast</label>
+
+    <input
+      type="text"
+      id="forecast"
+      placeholder="Example: 2.6%"
+    >
+
+
+    <label>Actual</label>
+
+    <input
+      type="text"
+      id="actual"
+      placeholder="Example: 2.9%"
+    >
+
+
+    <label>Additional Information (optional)</label>
+
+    <textarea
+      id="additional"
+      placeholder="Example: Core CPI, employment data, central bank comments, etc."
+    ></textarea>
+
+
+    <button id="analyzeButton" onclick="analyzeNews()">
+      ANALYZE NEWS
+    </button>
+
+  </div>
+
+
+  <div class="card">
+
+    <h2>🤖 News Analysis</h2>
+
+    <div id="results" class="result">
+      Enter the economic news information above.
+    </div>
+
+  </div>
+
+
+  <div class="info">
+
+    <strong>Important:</strong><br><br>
+
+    News is a bias/filter, not an entry signal.
+
+    The SMC Coach must still confirm the
+    4H → 1H → 15M structure before considering
+    a trade.
+
+  </div>
+
+</div>
+
+
+<script>
+
+async function analyzeNews() {
+
+  const button =
+    document.getElementById("analyzeButton");
+
+  const results =
+    document.getElementById("results");
+
+
+  const currency =
+    document.getElementById("currency").value;
+
+  const event =
+    document.getElementById("event").value.trim();
+
+  const previous =
+    document.getElementById("previous").value.trim();
+
+  const forecast =
+    document.getElementById("forecast").value.trim();
+
+  const actual =
+    document.getElementById("actual").value.trim();
+
+  const additional =
+    document.getElementById("additional").value.trim();
+
+
+  if (
+    !event ||
+    !previous ||
+    !forecast ||
+    !actual
+  ) {
+
+    results.innerHTML =
+      `<div class="error">
+        Please enter the event, Previous,
+        Forecast and Actual values.
+      </div>`;
+
+    return;
+  }
+
+
+  button.disabled = true;
+
+  button.textContent =
+    "ANALYZING NEWS...";
+
+
+  results.textContent =
+    "Gemini is analyzing the economic release...";
+
+
+  try {
+
+    const response =
+      await fetch("/news/analyze", {
+
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+
+          currency,
+          event,
+          previous,
+          forecast,
+          actual,
+          additional
+
+        })
+
+      });
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok || !data.success) {
+
+      throw new Error(
+        data.error || "News analysis failed."
+      );
+
+    }
+
+
+    results.textContent =
+      data.analysis || "No analysis returned.";
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    results.innerHTML =
+      `<div class="error">
+        ${escapeHtml(error.message)}
+      </div>`;
+
+  } finally {
+
+    button.disabled = false;
+
+    button.textContent =
+      "ANALYZE NEWS";
+
+  }
+
+}
+
+
+function escapeHtml(text) {
+
+  return String(text)
+
+    .replace(/&/g, "&amp;")
+
+    .replace(/</g, "&lt;")
+
+    .replace(/>/g, "&gt;")
+
+    .replace(/"/g, "&quot;")
+
+    .replace(/'/g, "&#039;");
+
+}
+
+</script>
+
+</body>
+  </html>
