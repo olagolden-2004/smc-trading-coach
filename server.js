@@ -1022,22 +1022,6 @@ For example, 4H Bullish while 1H and 15M are clearly
 Bearish, or 4H Bearish while 1H and 15M are clearly
 Bullish.
 
-IMPORTANT:
-A ranging or sideways 4H market is NOT automatically
-"Conflicting."
-
-If 4H is ranging and 1H + 15M agree in the same
-direction, use MODERATE rather than CONFLICTING.
-
-LIQUIDITY STORY:
-
-STRUCTURE STORY:
-
-ENTRY CONFIRMATION:
-YES / NO
-
-SETUP GRADE:
-A+ / A / B / C / D
 const prompt = `
 You are the FINAL SMC TOP-DOWN TRADING COACH.
 
