@@ -360,7 +360,49 @@ async function runCoach() {
   }
 
 }
+function useAITradePlan() {
 
+  const result =
+    document.getElementById("result").textContent;
+
+  const entryMatch =
+    result.match(/ENTRY:\s*([0-9]+(?:\.[0-9]+)?)/i);
+
+  const stopLossMatch =
+    result.match(/STOP LOSS:\s*([0-9]+(?:\.[0-9]+)?)/i);
+
+  const takeProfitMatch =
+    result.match(/TAKE PROFIT:\s*([0-9]+(?:\.[0-9]+)?)/i);
+
+  if (
+    !entryMatch ||
+    !stopLossMatch ||
+    !takeProfitMatch
+  ) {
+
+    alert("No valid AI Trade Plan was found.");
+
+    return;
+  }
+
+  const tradePlan = {
+
+    entry: parseFloat(entryMatch[1]),
+
+    stopLoss: parseFloat(stopLossMatch[1]),
+
+    takeProfit: parseFloat(takeProfitMatch[1])
+
+  };
+
+  localStorage.setItem(
+    "aiTradePlan",
+    JSON.stringify(tradePlan)
+  );
+
+  window.location.href =
+    "/risk-calculator.html";
+  }
 </script>
 
 </body>
