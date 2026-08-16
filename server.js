@@ -987,7 +987,32 @@ MARKET:
 15M BIAS:
 
 TOP-DOWN ALIGNMENT:
-Strong / Moderate / Weak / Conflicting
+
+Use these rules:
+
+STRONG:
+4H, 1H and 15M clearly support the same direction.
+
+MODERATE:
+4H is Neutral, Ranging, or Sideways, but 1H and 15M
+clearly support the same direction with valid confirmation.
+
+WEAK:
+There is some directional agreement, but important
+confirmation is missing or unclear.
+
+CONFLICTING:
+The timeframes clearly point in opposite directions.
+For example, 4H Bullish while 1H and 15M are clearly
+Bearish, or 4H Bearish while 1H and 15M are clearly
+Bullish.
+
+IMPORTANT:
+A ranging or sideways 4H market is NOT automatically
+"Conflicting."
+
+If 4H is ranging and 1H + 15M agree in the same
+direction, use MODERATE rather than CONFLICTING.
 
 LIQUIDITY STORY:
 
