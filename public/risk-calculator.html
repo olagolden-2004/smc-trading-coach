@@ -371,8 +371,8 @@
   }
 
 
-  // ============================================
-  // DETERMINE PIP SIZE
+    // ============================================
+  // PIP SIZE
   // ============================================
 
   const yenPairs = [
@@ -389,6 +389,42 @@
     yenPairs.includes(pair)
       ? 0.01
       : 0.0001;
+
+
+  // ============================================
+  // PIP VALUE
+  // ============================================
+  //
+  // Approximate USD pip value for 1 standard lot.
+  //
+  // USD-quoted pairs:
+  // approximately $10 per pip.
+  //
+  // JPY pairs:
+  // calculated from the current JPY price
+  // rather than using one fixed $6.70 value.
+  //
+  // This makes GBPJPY, EURJPY, USDJPY, etc.
+  // respond to their actual price level.
+  // ============================================
+
+  let pipValuePerLot;
+
+  if (pair === "USDJPY") {
+
+    pipValuePerLot =
+      (pipSize * 100000) / entry;
+
+  } else if (yenPairs.includes(pair)) {
+
+    pipValuePerLot =
+      (pipSize * 100000) / entry;
+
+  } else {
+
+    pipValuePerLot = 10;
+
+  }
 
 
   // ============================================
@@ -447,18 +483,7 @@
   // estimate.
   // ============================================
 
-  let pipValuePerLot = 10;
-
-
-  // JPY pairs are approximately $6.5-$7
-  // per pip for 1 standard lot around
-  // typical USDJPY levels.
-  //
-  // We use a simplified estimate here.
-
-  if (yenPairs.includes(pair)) {
-    pipValuePerLot = 6.70;
-  }
+  
 
 
   // ============================================
