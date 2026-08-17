@@ -392,37 +392,50 @@
 
 
   // ============================================
-  // PIP VALUE
-  // ============================================
-  //
-  // Approximate USD pip value for 1 standard lot.
-  //
-  // USD-quoted pairs:
-  // approximately $10 per pip.
-  //
-  // JPY pairs:
-  // calculated from the current JPY price
-  // rather than using one fixed $6.70 value.
-  //
-  // This makes GBPJPY, EURJPY, USDJPY, etc.
-  // respond to their actual price level.
-  // ============================================
+// PIP VALUE
+// ============================================
 
-  let pipValuePerLot;
+let pipValuePerLot;
 
-  if (pair === "USDJPY") {
+// USD-quoted pairs
+// Example: GBPUSD, EURUSD, AUDUSD
+if (
+  pair === "GBPUSD" ||
+  pair === "EURUSD" ||
+  pair === "AUDUSD" ||
+  pair === "NZDUSD"
+) {
 
-    pipValuePerLot =
-      (pipSize * 100000) / entry;
+  pipValuePerLot = 10;
 
-  } else if (yenPairs.includes(pair)) {
+}
 
-    pipValuePerLot =
-      (pipSize * 100000) / entry;
+// JPY pairs
+// For pairs such as GBPJPY and EURJPY,
+// convert the JPY pip value into USD
+// using USDJPY.
+else if (yenPairs.includes(pair)) {
 
-  } else {
+  const usdJpyRate = 150;
 
-    pipValuePerLot = 10;
+  pipValuePerLot =
+    (pipSize * 100000) / usdJpyRate;
+
+}
+
+// USD-based pairs
+// Example: USDJPY
+else if (pair === "USDJPY") {
+
+  pipValuePerLot =
+    (pipSize * 100000) / entry;
+
+}
+
+// Other pairs
+else {
+
+  pipValuePerLot = 10;
 
   }
 
