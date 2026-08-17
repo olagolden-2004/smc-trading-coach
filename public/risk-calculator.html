@@ -132,10 +132,6 @@
       color: #b9c9e2;
       font-size: 13px;
     }
-
-    .hidden {
-      display: none;
-    }
   </style>
 </head>
 
@@ -146,38 +142,35 @@
   <h1>SMC Risk Calculator</h1>
 
   <div class="subtitle">
-    Calculate your trade risk before entering the market
+    Calculate your forex trade risk before entering the market
   </div>
 
   <div class="card">
 
-    <label>Instrument</label>
+    <label>Currency Pair</label>
 
-    <select id="instrument" onchange="updateInstrumentFields()">
-      <option value="xauusd">XAUUSD (Gold)</option>
-      <option value="forex">Forex</option>
+    <select id="pair">
+      <option value="EURUSD">EUR/USD</option>
+      <option value="GBPUSD">GBP/USD</option>
+      <option value="USDJPY">USD/JPY</option>
+      <option value="GBPJPY">GBP/JPY</option>
+      <option value="EURJPY">EUR/JPY</option>
+      <option value="EURGBP">EUR/GBP</option>
+      <option value="AUDUSD">AUD/USD</option>
+      <option value="NZDUSD">NZD/USD</option>
+      <option value="USDCAD">USD/CAD</option>
+      <option value="USDCHF">USD/CHF</option>
+      <option value="AUDJPY">AUD/JPY</option>
+      <option value="CADJPY">CAD/JPY</option>
+      <option value="CHFJPY">CHF/JPY</option>
+      <option value="EURCAD">EUR/CAD</option>
+      <option value="GBPCAD">GBP/CAD</option>
+      <option value="GBPAUD">GBP/AUD</option>
+      <option value="EURAUD">EUR/AUD</option>
+      <option value="AUDCAD">AUD/CAD</option>
+      <option value="AUDCHF">AUD/CHF</option>
+      <option value="NZDJPY">NZD/JPY</option>
     </select>
-
-    <!-- XAUUSD broker specifications -->
-    <div id="xauusdSettings">
-
-      <label>XAUUSD Contract Size (oz)</label>
-
-      <input
-        type="number"
-        id="contractSize"
-        value="100"
-        min="0.01"
-        step="0.01"
-        placeholder="Example: 100"
-      >
-
-      <div class="subtitle" style="text-align:left; margin:8px 0 0 0;">
-        Enter the contract size specified by your broker.
-        Common examples are 100 oz, 10 oz, or 1 oz per 1.00 lot.
-      </div>
-
-    </div>
 
     <label>Broker Minimum Lot</label>
 
@@ -204,10 +197,10 @@
     <input
       type="number"
       id="riskPercent"
-      placeholder="Example: 1"
       value="1"
       min="0.01"
       step="0.01"
+      placeholder="Example: 1"
     >
 
     <label>Entry Price</label>
@@ -215,7 +208,7 @@
     <input
       type="number"
       id="entry"
-      placeholder="Example: 3350"
+      placeholder="Example: 1.17500"
       step="0.00001"
     >
 
@@ -224,7 +217,7 @@
     <input
       type="number"
       id="stopLoss"
-      placeholder="Example: 3335"
+      placeholder="Example: 1.17000"
       step="0.00001"
     >
 
@@ -233,7 +226,7 @@
     <input
       type="number"
       id="takeProfit"
-      placeholder="Example: 3380"
+      placeholder="Example: 1.18500"
       step="0.00001"
     >
 
@@ -256,27 +249,10 @@
 </div>
 
 <script>
+  function calculateRisk() {
 
-function updateInstrumentFields() {
-
-  const instrument =
-    document.getElementById("instrument").value;
-
-  const xauusdSettings =
-    document.getElementById("xauusdSettings");
-
-  if (instrument === "xauusd") {
-    xauusdSettings.classList.remove("hidden");
-  } else {
-    xauusdSettings.classList.add("hidden");
-  }
-}
-
-
-function calculateRisk() {
-
-  const instrument =
-    document.getElementById("instrument").value;
+  const pair =
+    document.getElementById("pair").value;
 
   const balance =
     parseFloat(
@@ -312,9 +288,9 @@ function calculateRisk() {
     document.getElementById("results");
 
 
-  /*
-    Validate basic inputs.
-  */
+  // ============================================
+  // BASIC VALIDATION
+  // ============================================
 
   if (
     !Number.isFinite(balance) ||
@@ -325,10 +301,11 @@ function calculateRisk() {
     !Number.isFinite(brokerMinLot)
   ) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Please enter all trade information.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
@@ -336,10 +313,11 @@ function calculateRisk() {
 
   if (balance <= 0) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Account balance must be greater than zero.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
@@ -347,10 +325,11 @@ function calculateRisk() {
 
   if (riskPercent <= 0 || riskPercent > 100) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Risk percentage must be between 0.01% and 100%.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
@@ -358,10 +337,11 @@ function calculateRisk() {
 
   if (brokerMinLot <= 0) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Broker minimum lot must be greater than zero.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
@@ -369,10 +349,11 @@ function calculateRisk() {
 
   if (entry === stopLoss) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Entry and Stop Loss cannot be the same.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
@@ -380,26 +361,47 @@ function calculateRisk() {
 
   if (entry === takeProfit) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Entry and Take Profit cannot be the same.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
 
 
-  /*
-    Calculate maximum money risk.
-  */
+  // ============================================
+  // DETERMINE PIP SIZE
+  // ============================================
+
+  const yenPairs = [
+    "USDJPY",
+    "GBPJPY",
+    "EURJPY",
+    "AUDJPY",
+    "CADJPY",
+    "CHFJPY",
+    "NZDJPY"
+  ];
+
+  const pipSize =
+    yenPairs.includes(pair)
+      ? 0.01
+      : 0.0001;
+
+
+  // ============================================
+  // RISK AMOUNT
+  // ============================================
 
   const riskAmount =
     balance * (riskPercent / 100);
 
 
-  /*
-    Calculate price distances.
-  */
+  // ============================================
+  // PRICE DISTANCES
+  // ============================================
 
   const stopDistance =
     Math.abs(entry - stopLoss);
@@ -410,188 +412,97 @@ function calculateRisk() {
 
   if (stopDistance <= 0) {
 
-    results.innerHTML =
-      `<div class="error">
+    results.innerHTML = `
+      <div class="error">
         Stop Loss distance must be greater than zero.
-      </div>`;
+      </div>
+    `;
 
     return;
   }
 
 
-  /*
-    Calculate reward-to-risk.
-  */
+  // ============================================
+  // PIP CALCULATIONS
+  // ============================================
+
+  const stopPips =
+    stopDistance / pipSize;
+
+  const targetPips =
+    targetDistance / pipSize;
+
+
+  // ============================================
+  // STANDARD FOREX LOT CALCULATION
+  //
+  // Approximation:
+  // 1 standard lot = 100,000 units
+  //
+  // For USD-quoted pairs:
+  // approximately $10 per pip per 1 lot.
+  //
+  // For JPY and cross pairs, this calculator
+  // uses a conservative simplified pip-value
+  // estimate.
+  // ============================================
+
+  let pipValuePerLot = 10;
+
+
+  // JPY pairs are approximately $6.5-$7
+  // per pip for 1 standard lot around
+  // typical USDJPY levels.
+  //
+  // We use a simplified estimate here.
+
+  if (yenPairs.includes(pair)) {
+    pipValuePerLot = 6.70;
+  }
+
+
+  // ============================================
+  // CALCULATE LOT SIZE
+  // ============================================
+
+  const riskPerOneLot =
+    stopPips * pipValuePerLot;
+
+
+  if (
+    !Number.isFinite(riskPerOneLot) ||
+    riskPerOneLot <= 0
+  ) {
+
+    results.innerHTML = `
+      <div class="error">
+        Unable to calculate the lot size.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  const calculatedLotSize =
+    riskAmount / riskPerOneLot;
+
+
+  const riskAtMinimumLot =
+    riskPerOneLot * brokerMinLot;
+
+
+  // ============================================
+  // REWARD / RISK
+  // ============================================
 
   const rewardRisk =
     targetDistance / stopDistance;
 
 
-  let calculatedLotSize;
-  let riskAtMinimumLot;
-  let contractSize = null;
-
-
-  /*
-    ============================================
-    XAUUSD CALCULATION
-    ============================================
-
-    For XAUUSD:
-
-    Risk = price movement × contract size × lots
-
-    Example:
-
-    Entry = 3350
-    Stop = 3335
-
-    Stop distance = 15
-
-    If contract size = 100 oz:
-
-    Risk per 1.00 lot =
-    15 × 100
-    = $1,500
-
-    If maximum risk = $10:
-
-    Lot size =
-    10 / 1500
-    = 0.006666...
-    */
-
-
-  if (instrument === "xauusd") {
-
-    contractSize =
-      parseFloat(
-        document.getElementById("contractSize").value
-      );
-
-
-    if (
-      !Number.isFinite(contractSize) ||
-      contractSize <= 0
-    ) {
-
-      results.innerHTML =
-        `<div class="error">
-          Please enter a valid XAUUSD contract size.
-        </div>`;
-
-      return;
-    }
-
-
-    /*
-      Risk for exactly 1.00 lot.
-    */
-
-    const riskPerOneLot =
-      stopDistance * contractSize;
-
-
-    if (
-      !Number.isFinite(riskPerOneLot) ||
-      riskPerOneLot <= 0
-    ) {
-
-      results.innerHTML =
-        `<div class="error">
-          Unable to calculate XAUUSD risk.
-        </div>`;
-
-      return;
-    }
-
-
-    /*
-      Exact theoretical lot size.
-    */
-
-    calculatedLotSize =
-      riskAmount / riskPerOneLot;
-
-
-    /*
-      Risk if broker minimum lot is used.
-    */
-
-    riskAtMinimumLot =
-      riskPerOneLot * brokerMinLot;
-
-  }
-
-
-  /*
-    ============================================
-    FOREX CALCULATION
-    ============================================
-
-    This remains a simplified calculation.
-
-    It assumes:
-    - USD quote currency
-    - 1 standard lot = 100,000 units
-    - approximately $10 per pip per standard lot
-    */
-
-
-  else {
-
-    const pipSize = 0.0001;
-
-    const stopPips =
-      stopDistance / pipSize;
-
-    const pipValuePerLot = 10;
-
-
-    calculatedLotSize =
-      riskAmount /
-      (stopPips * pipValuePerLot);
-
-
-    riskAtMinimumLot =
-      stopPips *
-      pipValuePerLot *
-      brokerMinLot;
-  }
-
-
-  /*
-    Validate calculated lot.
-  */
-
-  if (
-    !Number.isFinite(calculatedLotSize) ||
-    calculatedLotSize <= 0
-  ) {
-
-    results.innerHTML =
-      `<div class="error">
-        Unable to calculate a valid lot size.
-      </div>`;
-
-    return;
-  }
-
-
-  /*
-    Keep the exact theoretical calculation.
-
-    We do NOT round 0.0067 to 0.00.
-  */
-
-  const exactLot =
-    calculatedLotSize;
-
-
-  /*
-    Determine whether broker minimum
-    exceeds the selected risk.
-  */
+  // ============================================
+  // BROKER MINIMUM CHECK
+  // ============================================
 
   const minimumLotExceedsRisk =
     riskAtMinimumLot > riskAmount;
@@ -600,7 +511,7 @@ function calculateRisk() {
   let lotMessage = "";
 
 
-  if (exactLot < brokerMinLot) {
+  if (calculatedLotSize < brokerMinLot) {
 
     if (minimumLotExceedsRisk) {
 
@@ -610,18 +521,19 @@ function calculateRisk() {
           <strong>Broker minimum warning</strong><br><br>
 
           Your calculated lot size is
-          <strong>${exactLot.toFixed(4)}</strong> lots,
-          which is below your broker minimum of
-          <strong>${brokerMinLot.toFixed(3)}</strong> lot.<br><br>
+          <strong>${calculatedLotSize.toFixed(4)}</strong>
+          lots, which is below your broker minimum of
+          <strong>${brokerMinLot.toFixed(3)}</strong>
+          lot.<br><br>
 
-          Using the broker minimum would risk approximately
+          Using the broker minimum would risk
+          approximately
           <strong>$${riskAtMinimumLot.toFixed(2)}</strong>
           instead of your selected maximum risk of
           <strong>$${riskAmount.toFixed(2)}</strong>.<br><br>
 
-          The calculator will <strong>NOT</strong>
-          automatically increase your lot size to the
-          broker minimum because that would exceed
+          The calculator will NOT automatically increase
+          your lot size because doing so would exceed
           your selected risk.
 
         </div>
@@ -635,16 +547,16 @@ function calculateRisk() {
           <strong>Broker minimum notice</strong><br><br>
 
           Your calculated lot size is
-          <strong>${exactLot.toFixed(4)}</strong> lots,
-          which is below the broker minimum of
-          <strong>${brokerMinLot.toFixed(3)}</strong> lot.<br><br>
+          <strong>${calculatedLotSize.toFixed(4)}</strong>
+          lots.<br><br>
+
+          Your broker minimum is
+          <strong>${brokerMinLot.toFixed(3)}</strong>
+          lot.<br><br>
 
           The broker minimum would risk approximately
           <strong>$${riskAtMinimumLot.toFixed(2)}</strong>,
           which is within your selected risk limit.
-
-          You should still verify your broker's
-          contract specifications before trading.
 
         </div>
       `;
@@ -657,53 +569,30 @@ function calculateRisk() {
       <div class="safe">
 
         The calculated lot size of
-        <strong>${exactLot.toFixed(4)}</strong>
-        is at or above your broker minimum of
-        <strong>${brokerMinLot.toFixed(3)}</strong> lot.
+        <strong>${calculatedLotSize.toFixed(4)}</strong>
+        lots is at or above your broker minimum of
+        <strong>${brokerMinLot.toFixed(3)}</strong>
+        lot.
 
       </div>
     `;
   }
 
 
-  /*
-    XAUUSD broker information.
-  */
-
-  let brokerInfo = "";
-
-
-  if (instrument === "xauusd") {
-
-    brokerInfo = `
-      <div class="info">
-
-        <strong>XAUUSD Broker Specification</strong><br><br>
-
-        Contract size:
-        <strong>${contractSize} oz</strong>
-        per 1.00 lot.<br><br>
-
-        Broker minimum:
-        <strong>${brokerMinLot.toFixed(3)} lot</strong>.<br><br>
-
-        The calculation uses the contract size
-        you entered above. Different brokers may
-        use different XAUUSD contract specifications.
-
-      </div>
-    `;
-
-  }
-
-
-  /*
-    Display results.
-  */
+  // ============================================
+  // DISPLAY RESULTS
+  // ============================================
 
   results.innerHTML = `
 
     <div class="result">
+
+      <div class="result-row">
+        <span>Currency Pair</span>
+        <span class="value">
+          ${pair}
+        </span>
+      </div>
 
       <div class="result-row">
         <span>Account Balance</span>
@@ -755,6 +644,13 @@ function calculateRisk() {
       </div>
 
       <div class="result-row">
+        <span>Stop Distance (Pips)</span>
+        <span class="value">
+          ${stopPips.toFixed(1)}
+        </span>
+      </div>
+
+      <div class="result-row">
         <span>Potential Reward</span>
         <span class="value">
           ${rewardRisk.toFixed(2)}R
@@ -764,7 +660,7 @@ function calculateRisk() {
       <div class="result-row">
         <span>Calculated Lot Size</span>
         <span class="value">
-          ${exactLot.toFixed(4)}
+          ${calculatedLotSize.toFixed(4)}
         </span>
       </div>
 
@@ -786,69 +682,29 @@ function calculateRisk() {
 
     ${lotMessage}
 
-    ${brokerInfo}
+    <div class="info">
 
-    <div class="warning">
+      <strong>Risk Management Notice</strong><br><br>
 
-      This calculator is for risk-management planning.
+      The calculated lot size is based on your
+      selected account balance, risk percentage,
+      entry price and stop-loss distance.
 
-      Broker contract specifications can differ,
-      including contract size, minimum lot,
-      lot step and other trading conditions.
+      <br><br>
 
-      Always verify the final lot size and risk
-      with your broker before placing a trade.
+      Broker contract specifications, pip values,
+      minimum lot sizes and lot steps can differ.
+
+      <br><br>
+
+      Always verify the final lot size with your
+      broker before placing a live trade.
 
     </div>
 
   `;
-}
-
-
-/*
-  Show XAUUSD settings when the page loads.
-*/
-
-updateInstrumentFields();
-
-const savedTradePlan =
-  localStorage.getItem("aiTradePlan");
-
-if (savedTradePlan) {
-
-  try {
-
-    const tradePlan =
-      JSON.parse(savedTradePlan);
-
-    if (Number.isFinite(tradePlan.entry)) {
-      document.getElementById("entry").value =
-        tradePlan.entry;
-    }
-
-    if (Number.isFinite(tradePlan.stopLoss)) {
-      document.getElementById("stopLoss").value =
-        tradePlan.stopLoss;
-    }
-
-    if (Number.isFinite(tradePlan.takeProfit)) {
-      document.getElementById("takeProfit").value =
-        tradePlan.takeProfit;
-    }
-
-    localStorage.removeItem("aiTradePlan");
-
-  } catch (error) {
-
-    console.error(
-      "Unable to load AI Trade Plan:",
-      error
-    );
-
   }
-}
-
-</script>
+  </script>
 
 </body>
 </html>
