@@ -1350,7 +1350,28 @@ async function runAutomaticSignalAnalysis() {
 // ============================================================
 // API ROUTES
 // ============================================================
+app.get(
+  "/api/telegram/test",
+  async (req, res) => {
+    try {
+      await sendTelegramMessage(
+        "✅ SMC Trading Coach AI\n\nTelegram connection test successful."
+      );
 
+      res.json({
+        success: true,
+        message:
+          "Telegram test message sent successfully."
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error.message
+      });
+    }
+  }
+);
 app.get(
   "/health",
   (req, res) => {
