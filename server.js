@@ -10,10 +10,12 @@ const PORT = process.env.PORT || 3000;
 // ============================================================
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const TWELVE_DATA_API_KEY = process.env.TWELVE_DATA_API_KEY;
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const SIGNAL_TIMEFRAME = "15m";
+const TWELVE_DATA_API_KEY =
+  process.env.TWELVE_DATA_API_KEY;
+
 const ANALYSIS_TIMEFRAMES = ["4h", "1h", "15m"];
 
 const ALLOWED_SYMBOLS = [
@@ -31,12 +33,11 @@ const TWELVE_DATA_INTERVALS = {
 const CANDLE_LIMIT = 300;
 
 // ============================================================
-// BASIC APP SETUP
+// APP
 // ============================================================
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
-
 app.use(express.static("public"));
 
 // ============================================================
@@ -45,7 +46,7 @@ app.use(express.static("public"));
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error(
-    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables."
+    "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY."
   );
   process.exit(1);
 }
@@ -56,7 +57,7 @@ const supabaseAdmin = createClient(
 );
 
 // ============================================================
-// SIGNAL STATE
+// STATE
 // ============================================================
 
 const signalState = {
@@ -69,8 +70,50 @@ const signalState = {
 };
 
 // ============================================================
-// HELPERS
+// GENERAL HELPERS
 // ============================================================
+
+function normalizeSymbol(symbol) {
+  if (!symbol) return null;
+
+  const value = String(symbol)
+    .trim()
+    .toUpperCase()
+    .replace("-", "/")
+    .replace(" ", "");
+
+  const aliases = {
+    GBPUSD: "GBP/USD",
+    EURUSD: "EUR/USD",
+    XAUUSD: "XAU/USD"
+  };
+
+  return aliases[value] || value;
+}
+
+function normalizeTimeframe(timeframe) {
+  if (!timeframe) return null;
+
+  const value = String(timeframe)
+    .trim()
+    .toLowerCase();
+
+  const aliases = {
+    "15": "15m",
+    "15m": "15m",
+    "15min": "15m",
+
+    "1h": "1h",
+    "1hour": "1h",
+    "60m": "1h",
+
+    "4h": "4h",
+    "4hour": "4h",
+    "240m": "4h"
+  };
+
+  return aliases[value] || null;
+}
 
 function normalizeCandle(candle) {
   if (!candle || typeof candle !== "object") {
@@ -115,10 +158,11 @@ function validateCandles(candles) {
     };
   }
 
-  if (candles.length < 20) {
+  if (candles.length < 50) {
     return {
       valid: false,
-      reason: `Not enough candles. Received ${candles.length}, minimum is 20.`
+      reason:
+        `Not enough candles. Received ${candles.length}; minimum is 50.`
     };
   }
 
@@ -135,21 +179,21 @@ function validateCandles(candles) {
     if (c.high < c.low) {
       return {
         valid: false,
-        reason: `Invalid candle at index ${i}: high is below low.`
+        reason: `Invalid candle ${i}: high below low.`
       };
     }
 
     if (c.high < c.open || c.high < c.close) {
       return {
         valid: false,
-        reason: `Invalid candle at index ${i}: high is below open/close.`
+        reason: `Invalid candle ${i}: high below open/close.`
       };
     }
 
     if (c.low > c.open || c.low > c.close) {
       return {
         valid: false,
-        reason: `Invalid candle at index ${i}: low is above open/close.`
+        reason: `Invalid candle ${i}: low above open/close.`
       };
     }
   }
@@ -160,673 +204,1493 @@ function validateCandles(candles) {
   };
 }
 
-function normalizeSymbol(symbol) {
-  if (!symbol) {
-    return null;
-  }
-
-  const normalized = String(symbol)
-    .trim()
-    .toUpperCase()
-    .replace("-", "/")
-    .replace(" ", "");
-
-  const aliases = {
-    GBPUSD: "GBP/USD",
-    EURUSD: "EUR/USD",
-    XAUUSD: "XAU/USD"
-  };
-
-  return aliases[normalized] || normalized;
-}
-
-function normalizeTimeframe(timeframe) {
-  if (!timeframe) {
-    return null;
-  }
-
-  const value = String(timeframe).trim().toLowerCase();
-
-  const aliases = {
-    "15": "15m",
-    "15m": "15m",
-    "15min": "15m",
-
-    "1h": "1h",
-    "1hour": "1h",
-    "60m": "1h",
-
-    "4h": "4h",
-    "4hour": "4h",
-    "240m": "4h"
-  };
-
-  return aliases[value] || null;
-}
-
 // ============================================================
 // TWELVE DATA
 // ============================================================
 
-async function fetchTwelveDataCandles(symbol, timeframe, outputsize = CANDLE_LIMIT) {
+async function fetchTwelveDataCandles(
+  symbol,
+  timeframe,
+  outputsize = CANDLE_LIMIT
+) {
   if (!TWELVE_DATA_API_KEY) {
     throw new Error(
-      "TWELVE_DATA_API_KEY is missing from environment variables."
+      "TWELVE_DATA_API_KEY is missing."
     );
   }
 
-  const normalizedSymbol = normalizeSymbol(symbol);
-  const normalizedTimeframe = normalizeTimeframe(timeframe);
+  const normalizedSymbol =
+    normalizeSymbol(symbol);
+
+  const normalizedTimeframe =
+    normalizeTimeframe(timeframe);
 
   if (!ALLOWED_SYMBOLS.includes(normalizedSymbol)) {
     throw new Error(
-      `Symbol ${normalizedSymbol} is not enabled. Allowed symbols: ${ALLOWED_SYMBOLS.join(
-        ", "
-      )}`
+      `Unsupported symbol: ${normalizedSymbol}`
     );
   }
 
   if (!normalizedTimeframe) {
     throw new Error(
-      "Unsupported timeframe. Use 15m, 1h, or 4h."
+      "Unsupported timeframe. Use 15m, 1h or 4h."
     );
   }
 
-  const interval = TWELVE_DATA_INTERVALS[normalizedTimeframe];
+  const interval =
+    TWELVE_DATA_INTERVALS[normalizedTimeframe];
 
-  const url = new URL("https://api.twelvedata.com/time_series");
+  const url = new URL(
+    "https://api.twelvedata.com/time_series"
+  );
 
-  url.searchParams.set("symbol", normalizedSymbol);
-  url.searchParams.set("interval", interval);
-  url.searchParams.set("outputsize", String(outputsize));
-  url.searchParams.set("order", "asc");
-  url.searchParams.set("timezone", "UTC");
-  url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
+  url.searchParams.set(
+    "symbol",
+    normalizedSymbol
+  );
 
-  const response = await fetch(url.toString());
+  url.searchParams.set(
+    "interval",
+    interval
+  );
+
+  url.searchParams.set(
+    "outputsize",
+    String(outputsize)
+  );
+
+  url.searchParams.set(
+    "order",
+    "asc"
+  );
+
+  url.searchParams.set(
+    "timezone",
+    "UTC"
+  );
+
+  url.searchParams.set(
+    "apikey",
+    TWELVE_DATA_API_KEY
+  );
+
+  const response =
+    await fetch(url.toString());
 
   if (!response.ok) {
     throw new Error(
-      `Twelve Data HTTP error: ${response.status} ${response.statusText}`
+      `Twelve Data HTTP error: ${response.status}`
     );
   }
 
-  const data = await response.json();
+  const data =
+    await response.json();
 
   if (data.status === "error") {
     throw new Error(
-      data.message || "Twelve Data returned an API error."
+      data.message ||
+      "Twelve Data API error."
     );
   }
 
   if (!Array.isArray(data.values)) {
     throw new Error(
-      "Twelve Data response did not contain candle values."
+      "Twelve Data returned no candle values."
     );
   }
 
-  const candles = data.values
-    .map(normalizeCandle)
-    .filter(Boolean);
+  const candles =
+    data.values
+      .map(normalizeCandle)
+      .filter(Boolean);
 
-  const validation = validateCandles(candles);
+  const validation =
+    validateCandles(candles);
 
   if (!validation.valid) {
     throw new Error(
-      `Invalid Twelve Data candles: ${validation.reason}`
+      validation.reason
     );
   }
 
-  return {
-    symbol: normalizedSymbol,
-    timeframe: normalizedTimeframe,
-    provider: "Twelve Data",
-    candles,
-    count: candles.length,
-    latest: candles[candles.length - 1],
-    meta: data.meta || null
-  };
+  return candles;
 }
 
-// ============================================================
-// FETCH ALL 3 SMC TIMEFRAMES
-// ============================================================
-
-async function loadAnalysisCandles(symbol) {
-  const result = {
-    symbol,
-    "4h": null,
-    "1h": null,
-    "15m": null
-  };
+async function loadMarket(symbol) {
+  const result = {};
 
   for (const timeframe of ANALYSIS_TIMEFRAMES) {
-    result[timeframe] = await fetchTwelveDataCandles(
-      symbol,
-      timeframe,
-      CANDLE_LIMIT
-    );
+    result[timeframe] =
+      await fetchTwelveDataCandles(
+        symbol,
+        timeframe,
+        CANDLE_LIMIT
+      );
   }
 
   return result;
 }
 
 // ============================================================
-// HEALTH
+// SMC MATH HELPERS
 // ============================================================
 
-app.get("/health", async (req, res) => {
-  let supabaseStatus = "unknown";
+function averageRange(candles, length = 20) {
+  const start =
+    Math.max(0, candles.length - length);
 
-  try {
-    const { error } = await supabaseAdmin
-      .from("analysis_slots")
-      .select("id")
-      .limit(1);
+  let total = 0;
+  let count = 0;
 
-    supabaseStatus = error ? "error" : "ok";
-  } catch (error) {
-    supabaseStatus = "error";
+  for (let i = start; i < candles.length; i++) {
+    total +=
+      candles[i].high -
+      candles[i].low;
+
+    count++;
   }
 
-  res.json({
-    status: "online",
-    version: "2.1.0",
-    marketData: TWELVE_DATA_API_KEY
-      ? "configured"
-      : "missing_api_key",
-    provider: "Twelve Data",
-    supabase: supabaseStatus,
-    timeframes: ANALYSIS_TIMEFRAMES,
-    symbols: ALLOWED_SYMBOLS
-  });
-});
+  return count ? total / count : 0;
+}
+
+function candleBody(c) {
+  return Math.abs(c.close - c.open);
+}
+
+function candleRange(c) {
+  return c.high - c.low;
+}
+
+function isBullish(c) {
+  return c.close > c.open;
+}
+
+function isBearish(c) {
+  return c.close < c.open;
+}
+
+function midpoint(high, low) {
+  return low + (high - low) / 2;
+}
 
 // ============================================================
-// SIGNAL STATUS
+// SWING DETECTION
 // ============================================================
 
-app.get("/api/signal/status", (req, res) => {
-  res.json({
-    success: true,
-    ...signalState
-  });
-});
+function findSwingHighs(candles, strength = 3) {
+  const swings = [];
 
-// ============================================================
-// MARKET DATA STATUS
-// ============================================================
+  for (
+    let i = strength;
+    i < candles.length - strength;
+    i++
+  ) {
+    const current = candles[i];
 
-app.get("/api/market-data/status", (req, res) => {
-  res.json({
-    success: true,
-    provider: "Twelve Data",
-    apiKeyConfigured: Boolean(TWELVE_DATA_API_KEY),
-    symbols: ALLOWED_SYMBOLS,
-    timeframes: ANALYSIS_TIMEFRAMES
-  });
-});
+    let valid = true;
 
-// ============================================================
-// TEST ONE MARKET DATA REQUEST
-// ============================================================
-
-app.get("/api/market-data/candles", async (req, res) => {
-  try {
-    const symbol = normalizeSymbol(req.query.symbol);
-    const timeframe = normalizeTimeframe(req.query.timeframe);
-
-    if (!symbol) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing symbol."
-      });
+    for (
+      let j = 1;
+      j <= strength;
+      j++
+    ) {
+      if (
+        current.high <= candles[i - j].high ||
+        current.high <= candles[i + j].high
+      ) {
+        valid = false;
+        break;
+      }
     }
 
-    if (!timeframe) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing or invalid timeframe. Use 15m, 1h, or 4h."
+    if (valid) {
+      swings.push({
+        index: i,
+        price: current.high,
+        time: current.time
       });
     }
+  }
 
-    const result = await fetchTwelveDataCandles(
-      symbol,
-      timeframe,
-      CANDLE_LIMIT
+  return swings;
+}
+
+function findSwingLows(candles, strength = 3) {
+  const swings = [];
+
+  for (
+    let i = strength;
+    i < candles.length - strength;
+    i++
+  ) {
+    const current = candles[i];
+
+    let valid = true;
+
+    for (
+      let j = 1;
+      j <= strength;
+      j++
+    ) {
+      if (
+        current.low >= candles[i - j].low ||
+        current.low >= candles[i + j].low
+      ) {
+        valid = false;
+        break;
+      }
+    }
+
+    if (valid) {
+      swings.push({
+        index: i,
+        price: current.low,
+        time: current.time
+      });
+    }
+  }
+
+  return swings;
+}
+
+// ============================================================
+// MARKET STRUCTURE
+// ============================================================
+
+function analyzeStructure(candles) {
+  const highs =
+    findSwingHighs(candles, 3);
+
+  const lows =
+    findSwingLows(candles, 3);
+
+  const recentHighs =
+    highs.slice(-4);
+
+  const recentLows =
+    lows.slice(-4);
+
+  let bias = "NEUTRAL";
+
+  if (
+    recentHighs.length >= 2 &&
+    recentLows.length >= 2
+  ) {
+    const h1 =
+      recentHighs[recentHighs.length - 2];
+
+    const h2 =
+      recentHighs[recentHighs.length - 1];
+
+    const l1 =
+      recentLows[recentLows.length - 2];
+
+    const l2 =
+      recentLows[recentLows.length - 1];
+
+    const bullishStructure =
+      h2.price > h1.price &&
+      l2.price > l1.price;
+
+    const bearishStructure =
+      h2.price < h1.price &&
+      l2.price < l1.price;
+
+    if (bullishStructure) {
+      bias = "BULLISH";
+    } else if (bearishStructure) {
+      bias = "BEARISH";
+    }
+  }
+
+  const latest =
+    candles[candles.length - 1];
+
+  const previousHigh =
+    highs.length
+      ? highs[highs.length - 1]
+      : null;
+
+  const previousLow =
+    lows.length
+      ? lows[lows.length - 1]
+      : null;
+
+  let bos = null;
+  let choch = null;
+
+  if (
+    previousHigh &&
+    latest.close > previousHigh.price
+  ) {
+    bos = "BULLISH";
+  }
+
+  if (
+    previousLow &&
+    latest.close < previousLow.price
+  ) {
+    bos = "BEARISH";
+  }
+
+  if (bos === "BULLISH" && bias === "BEARISH") {
+    choch = "BULLISH";
+  }
+
+  if (bos === "BEARISH" && bias === "BULLISH") {
+    choch = "BEARISH";
+  }
+
+  return {
+    bias,
+    bos,
+    choch,
+    swingHighs: highs,
+    swingLows: lows,
+    latestHigh:
+      previousHigh
+        ? previousHigh.price
+        : null,
+    latestLow:
+      previousLow
+        ? previousLow.price
+        : null
+  };
+}
+// ============================================================
+// PART 2 — SMC ENGINE + SIGNAL FILTER + API + AUTO MONITOR
+// ============================================================
+
+// LIQUIDITY SWEEP
+function detectLiquiditySweep(candles, structure) {
+  const latestIndex = candles.length - 1;
+  const latest = candles[latestIndex];
+
+  const highs = structure.swingHighs;
+  const lows = structure.swingLows;
+
+  const recentHigh =
+    highs.length ? highs[highs.length - 1] : null;
+
+  const recentLow =
+    lows.length ? lows[lows.length - 1] : null;
+
+  let bullishSweep = false;
+  let bearishSweep = false;
+
+  if (recentLow) {
+    bullishSweep =
+      latest.low < recentLow.price &&
+      latest.close > recentLow.price;
+  }
+
+  if (recentHigh) {
+    bearishSweep =
+      latest.high > recentHigh.price &&
+      latest.close < recentHigh.price;
+  }
+
+  return {
+    bullishSweep,
+    bearishSweep,
+    sweptHigh:
+      bearishSweep && recentHigh
+        ? recentHigh.price
+        : null,
+    sweptLow:
+      bullishSweep && recentLow
+        ? recentLow.price
+        : null
+  };
+}
+
+// DISPLACEMENT
+function detectDisplacement(candles) {
+  if (candles.length < 25) {
+    return {
+      bullish: false,
+      bearish: false,
+      strength: 0
+    };
+  }
+
+  const latest =
+    candles[candles.length - 1];
+
+  const previous =
+    candles[candles.length - 2];
+
+  const avgRange =
+    averageRange(
+      candles.slice(0, -1),
+      20
     );
 
-    signalState.candlesLoaded = true;
-    signalState.lastError = null;
+  const latestRange =
+    candleRange(latest);
 
-    res.json({
-      success: true,
-      provider: result.provider,
-      symbol: result.symbol,
-      timeframe: result.timeframe,
-      count: result.count,
-      latest: result.latest,
-      candles: result.candles
-    });
+  const latestBody =
+    candleBody(latest);
 
-  } catch (error) {
-    signalState.lastError = error.message;
+  const strongRange =
+    avgRange > 0 &&
+    latestRange >= avgRange * 1.5;
 
-    console.error("Market data error:", error);
+  const strongBody =
+    latestRange > 0 &&
+    latestBody / latestRange >= 0.60;
 
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  const bullish =
+    isBullish(latest) &&
+    latest.close > previous.close &&
+    strongRange &&
+    strongBody;
+
+  const bearish =
+    isBearish(latest) &&
+    latest.close < previous.close &&
+    strongRange &&
+    strongBody;
+
+  let strength = 0;
+
+  if (strongRange) {
+    strength += 50;
   }
-});
 
-// ============================================================
-// TEST ALL 3 TIMEFRAMES FOR ONE SYMBOL
-// ============================================================
+  if (strongBody) {
+    strength += 30;
+  }
 
-app.get("/api/market-data/all", async (req, res) => {
-  try {
-    const symbol = normalizeSymbol(req.query.symbol);
+  if (
+    bullish ||
+    bearish
+  ) {
+    strength += 20;
+  }
 
-    if (!symbol) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing symbol."
-      });
+  return {
+    bullish,
+    bearish,
+    strength
+  };
+}
+
+// ORDER BLOCK APPROXIMATION
+function findOrderBlock(candles, direction) {
+  if (candles.length < 10) {
+    return null;
+  }
+
+  const displacementIndex =
+    candles.length - 1;
+
+  const searchStart =
+    Math.max(
+      0,
+      displacementIndex - 8
+    );
+
+  for (
+    let i = displacementIndex - 1;
+    i >= searchStart;
+    i--
+  ) {
+    const c = candles[i];
+
+    if (
+      direction === "BULLISH" &&
+      isBearish(c)
+    ) {
+      return {
+        index: i,
+        time: c.time,
+        high: c.high,
+        low: c.low,
+        midpoint: midpoint(
+          c.high,
+          c.low
+        )
+      };
     }
 
-    const result = await loadAnalysisCandles(symbol);
-
-    signalState.candlesLoaded = true;
-    signalState.lastError = null;
-
-    res.json({
-      success: true,
-      provider: "Twelve Data",
-      symbol,
-      timeframes: {
-        "4h": {
-          count: result["4h"].count,
-          latest: result["4h"].latest
-        },
-        "1h": {
-          count: result["1h"].count,
-          latest: result["1h"].latest
-        },
-        "15m": {
-          count: result["15m"].count,
-          latest: result["15m"].latest
-        }
-      }
-    });
-
-  } catch (error) {
-    signalState.lastError = error.message;
-
-    console.error("All timeframe market data error:", error);
-
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    if (
+      direction === "BEARISH" &&
+      isBullish(c)
+    ) {
+      return {
+        index: i,
+        time: c.time,
+        high: c.high,
+        low: c.low,
+        midpoint: midpoint(
+          c.high,
+          c.low
+        )
+      };
+    }
   }
-});
 
-// ============================================================
-// SMC ENGINE PLACEHOLDER
-// ============================================================
+  return null;
+}
 
-async function runAutomaticSignalAnalysis(symbol) {
-  const market = await loadAnalysisCandles(symbol);
+// PREMIUM / DISCOUNT
+function calculatePremiumDiscount(
+  candles,
+  structure
+) {
+  const latest =
+    candles[candles.length - 1];
 
-  /*
-    IMPORTANT:
+  const high =
+    structure.latestHigh;
 
-    This section is intentionally NOT pretending to generate
-    BUY/SELL signals yet.
+  const low =
+    structure.latestLow;
 
-    The next stage will analyze:
+  if (
+    high === null ||
+    low === null ||
+    high <= low
+  ) {
+    return {
+      zone: "UNKNOWN",
+      midpoint: null
+    };
+  }
 
-    4H:
-      - Higher-timeframe structure
-      - Liquidity
-      - Premium / discount
-      - Bias
+  const mid =
+    midpoint(high, low);
 
-    1H:
-      - Structure confirmation
-      - BOS / CHOCH
-      - Liquidity sweep
-      - Displacement
-      - Key zones
+  let zone = "EQUILIBRIUM";
 
-    15M:
-      - Liquidity sweep
-      - BOS / CHOCH
-      - Displacement
-      - FVG
-      - Order block
-      - Fresh retracement
-      - Entry confirmation
+  if (latest.close > mid) {
+    zone = "PREMIUM";
+  }
 
-    Final:
-      BUY
-      SELL
-      NO SIGNAL
+  if (latest.close < mid) {
+    zone = "DISCOUNT";
+  }
 
-    We do NOT want fake signals while the engine is unfinished.
-  */
+  return {
+    zone,
+    midpoint: mid
+  };
+}
+
+// TIMEFRAME ANALYSIS
+function analyzeTimeframe(
+  candles,
+  timeframe
+) {
+  const structure =
+    analyzeStructure(candles);
+
+  const sweep =
+    detectLiquiditySweep(
+      candles,
+      structure
+    );
+
+  const displacement =
+    detectDisplacement(candles);
+
+  const premiumDiscount =
+    calculatePremiumDiscount(
+      candles,
+      structure
+    );
+
+  const bullishOrderBlock =
+    findOrderBlock(
+      candles,
+      "BULLISH"
+    );
+
+  const bearishOrderBlock =
+    findOrderBlock(
+      candles,
+      "BEARISH"
+    );
+
+  let direction = "NEUTRAL";
+
+  if (
+    structure.bias === "BULLISH"
+  ) {
+    direction = "BULLISH";
+  }
+
+  if (
+    structure.bias === "BEARISH"
+  ) {
+    direction = "BEARISH";
+  }
+
+  return {
+    timeframe,
+    direction,
+    structure,
+    sweep,
+    displacement,
+    premiumDiscount,
+    orderBlocks: {
+      bullish: bullishOrderBlock,
+      bearish: bearishOrderBlock
+    },
+    latest:
+      candles[candles.length - 1]
+  };
+}
+
+// TOP-DOWN SMC DECISION
+function buildSMCDecision(
+  market,
+  symbol
+) {
+  const h4 =
+    analyzeTimeframe(
+      market["4h"],
+      "4h"
+    );
+
+  const h1 =
+    analyzeTimeframe(
+      market["1h"],
+      "1h"
+    );
+
+  const m15 =
+    analyzeTimeframe(
+      market["15m"],
+      "15m"
+    );
+
+  const reasons = [];
+
+  let direction = "NO SIGNAL";
+
+  // ----------------------------------------------------------
+  // BUY CONDITIONS
+  // ----------------------------------------------------------
+
+  const bullishHTF =
+    h4.direction === "BULLISH";
+
+  const bullish1H =
+    h1.direction === "BULLISH";
+
+  const bullish15M =
+    m15.direction === "BULLISH";
+
+  const bullishSweep =
+    m15.sweep.bullishSweep;
+
+  const bullishDisplacement =
+    m15.displacement.bullish;
+
+  const bullishBOS =
+    m15.structure.bos === "BULLISH";
+
+  // ----------------------------------------------------------
+  // SELL CONDITIONS
+  // ----------------------------------------------------------
+
+  const bearishHTF =
+    h4.direction === "BEARISH";
+
+  const bearish1H =
+    h1.direction === "BEARISH";
+
+  const bearish15M =
+    m15.direction === "BEARISH";
+
+  const bearishSweep =
+    m15.sweep.bearishSweep;
+
+  const bearishDisplacement =
+    m15.displacement.bearish;
+
+  const bearishBOS =
+    m15.structure.bos === "BEARISH";
+
+  // ----------------------------------------------------------
+  // BUY DECISION
+  // ----------------------------------------------------------
+
+  if (
+    bullishHTF &&
+    bullish1H &&
+    bullish15M &&
+    bullishSweep &&
+    bullishDisplacement &&
+    bullishBOS
+  ) {
+    direction = "BUY";
+
+    reasons.push(
+      "4H bullish structure."
+    );
+
+    reasons.push(
+      "1H confirms bullish direction."
+    );
+
+    reasons.push(
+      "15M confirms bullish structure."
+    );
+
+    reasons.push(
+      "Liquidity sweep detected."
+    );
+
+    reasons.push(
+      "Bullish displacement detected."
+    );
+
+    reasons.push(
+      "15M bullish BOS confirmed."
+    );
+  }
+
+  // ----------------------------------------------------------
+  // SELL DECISION
+  // ----------------------------------------------------------
+
+  if (
+    bearishHTF &&
+    bearish1H &&
+    bearish15M &&
+    bearishSweep &&
+    bearishDisplacement &&
+    bearishBOS
+  ) {
+    direction = "SELL";
+
+    reasons.push(
+      "4H bearish structure."
+    );
+
+    reasons.push(
+      "1H confirms bearish direction."
+    );
+
+    reasons.push(
+      "15M confirms bearish structure."
+    );
+
+    reasons.push(
+      "Liquidity sweep detected."
+    );
+
+    reasons.push(
+      "Bearish displacement detected."
+    );
+
+    reasons.push(
+      "15M bearish BOS confirmed."
+    );
+  }
+
+  // ----------------------------------------------------------
+  // NO SIGNAL REASONS
+  // ----------------------------------------------------------
+
+  if (direction === "NO SIGNAL") {
+    if (
+      h4.direction === "NEUTRAL"
+    ) {
+      reasons.push(
+        "4H structure is not clear."
+      );
+    }
+
+    if (
+      h4.direction !== h1.direction
+    ) {
+      reasons.push(
+        "4H and 1H are not aligned."
+      );
+    }
+
+    if (
+      h1.direction !== m15.direction
+    ) {
+      reasons.push(
+        "1H and 15M are not aligned."
+      );
+    }
+
+    if (
+      !bullishSweep &&
+      !bearishSweep
+    ) {
+      reasons.push(
+        "No confirmed liquidity sweep."
+      );
+    }
+
+    if (
+      !bullishDisplacement &&
+      !bearishDisplacement
+    ) {
+      reasons.push(
+        "No confirmed displacement."
+      );
+    }
+
+    if (
+      !bullishBOS &&
+      !bearishBOS
+    ) {
+      reasons.push(
+        "No confirmed 15M BOS."
+      );
+    }
+
+    if (!reasons.length) {
+      reasons.push(
+        "SMC conditions are incomplete."
+      );
+    }
+  }
+
+  const latest15M =
+    market["15m"][
+      market["15m"].length - 1
+    ];
 
   return {
     symbol,
-    decision: "NO SIGNAL",
-    reason: "Market data connected. SMC signal engine is the next stage.",
-    marketData: {
-      provider: "Twelve Data",
-      "4h": market["4h"].count,
-      "1h": market["1h"].count,
-      "15m": market["15m"].count
+    signal: direction,
+    price: latest15M.close,
+    candleTime: latest15M.time,
+
+    timeframes: {
+      "4h": h4,
+      "1h": h1,
+      "15m": m15
     },
-    latest: {
-      "4h": market["4h"].latest,
-      "1h": market["1h"].latest,
-      "15m": market["15m"].latest
-    }
+
+    reasons,
+
+    generatedAt:
+      new Date().toISOString()
   };
 }
 
 // ============================================================
-// MANUAL SIGNAL ENGINE TEST
+// SIGNAL DUPLICATION PROTECTION
 // ============================================================
 
-app.post("/api/signal/run", async (req, res) => {
-  if (signalState.running) {
-    return res.status(409).json({
-      success: false,
-      error: "Signal analysis is already running."
-    });
+function signalKey(signal) {
+  if (!signal) {
+    return null;
   }
 
-  const symbol = normalizeSymbol(
-    req.body?.symbol || "GBP/USD"
-  );
+  return [
+    signal.symbol,
+    signal.signal,
+    signal.candleTime
+  ].join("|");
+}
 
-  if (!ALLOWED_SYMBOLS.includes(symbol)) {
-    return res.status(400).json({
-      success: false,
-      error: `Unsupported symbol. Use one of: ${ALLOWED_SYMBOLS.join(", ")}`
+const sentSignalKeys =
+  new Set();
+
+function hasSignalBeenSent(
+  signal
+) {
+  const key =
+    signalKey(signal);
+
+  if (!key) {
+    return false;
+  }
+
+  return sentSignalKeys.has(key);
+}
+
+function markSignalSent(
+  signal
+) {
+  const key =
+    signalKey(signal);
+
+  if (key) {
+    sentSignalKeys.add(key);
+  }
+
+  // Prevent unlimited memory growth.
+  if (sentSignalKeys.size > 500) {
+    const first =
+      sentSignalKeys.values().next().value;
+
+    sentSignalKeys.delete(first);
+  }
+}
+
+// ============================================================
+// TELEGRAM
+// ============================================================
+
+async function sendTelegramMessage(
+  message
+) {
+  const botToken =
+    process.env.TELEGRAM_BOT_TOKEN;
+
+  const chatId =
+    process.env.TELEGRAM_CHAT_ID;
+
+  if (
+    !botToken ||
+    !chatId
+  ) {
+    throw new Error(
+      "Telegram is not configured. Add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID."
+    );
+  }
+
+  const url =
+    `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+  const response =
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json"
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: message
+      })
     });
+
+  const data =
+    await response.json();
+
+  if (
+    !response.ok ||
+    !data.ok
+  ) {
+    throw new Error(
+      data.description ||
+      "Telegram message failed."
+    );
+  }
+
+  return data;
+}
+
+function formatSignalMessage(
+  signal
+) {
+  const emoji =
+    signal.signal === "BUY"
+      ? "🟢"
+      : "🔴";
+
+  const title =
+    signal.signal === "BUY"
+      ? "BUY SIGNAL"
+      : "SELL SIGNAL";
+
+  return [
+    `${emoji} SMC ${title}`,
+    "",
+    `Pair: ${signal.symbol}`,
+    `Direction: ${signal.signal}`,
+    `Price: ${signal.price}`,
+    "",
+    "Timeframe confirmation:",
+    "4H → 1H → 15M",
+    "",
+    "SMC confirmation:",
+    ...signal.reasons.map(
+      reason => `• ${reason}`
+    ),
+    "",
+    `Candle: ${signal.candleTime}`,
+    `Generated: ${signal.generatedAt}`
+  ].join("\n");
+}
+
+// ============================================================
+// RUN ONE SYMBOL
+// ============================================================
+
+async function runSymbolAnalysis(
+  symbol
+) {
+  const normalized =
+    normalizeSymbol(symbol);
+
+  if (
+    !ALLOWED_SYMBOLS.includes(
+      normalized
+    )
+  ) {
+    throw new Error(
+      `Unsupported symbol: ${normalized}`
+    );
+  }
+
+  const market =
+    await loadMarket(normalized);
+
+  const decision =
+    buildSMCDecision(
+      market,
+      normalized
+    );
+
+  signalState.candlesLoaded = true;
+
+  if (
+    decision.signal === "BUY" ||
+    decision.signal === "SELL"
+  ) {
+    if (
+      !hasSignalBeenSent(
+        decision
+      )
+    ) {
+      const message =
+        formatSignalMessage(
+          decision
+        );
+
+      await sendTelegramMessage(
+        message
+      );
+
+      markSignalSent(
+        decision
+      );
+
+      signalState.lastSignal =
+        decision;
+
+      return {
+        ...decision,
+        telegramSent: true
+      };
+    }
+
+    return {
+      ...decision,
+      telegramSent: false,
+      duplicate: true
+    };
+  }
+
+  return {
+    ...decision,
+    telegramSent: false
+  };
+}
+
+// ============================================================
+// RUN ALL SYMBOLS
+// ============================================================
+
+async function runAutomaticSignalAnalysis() {
+  if (signalState.running) {
+    return {
+      success: false,
+      message:
+        "Signal analysis is already running."
+    };
   }
 
   signalState.running = true;
-  signalState.lastRun = new Date().toISOString();
   signalState.lastError = null;
 
   try {
-    const result = await runAutomaticSignalAnalysis(symbol);
+    const results = [];
 
-    signalState.lastSignal = result.decision;
+    for (
+      const symbol of ALLOWED_SYMBOLS
+    ) {
+      try {
+        const result =
+          await runSymbolAnalysis(
+            symbol
+          );
 
-    res.json({
+        results.push(result);
+      } catch (error) {
+        results.push({
+          symbol,
+          signal: "ERROR",
+          error: error.message
+        });
+      }
+    }
+
+    signalState.lastRun =
+      new Date().toISOString();
+
+    return {
       success: true,
-      result
-    });
-
+      results
+    };
   } catch (error) {
-    signalState.lastError = error.message;
+    signalState.lastError =
+      error.message;
 
-    console.error("Signal analysis error:", error);
-
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-
+    throw error;
   } finally {
     signalState.running = false;
   }
-});
+}
+
+// ============================================================
+// API ROUTES
+// ============================================================
+
+app.get(
+  "/health",
+  (req, res) => {
+    res.json({
+      success: true,
+      service:
+        "SMC Trading Coach AI",
+      status: "online",
+      version: "3.0.0",
+      provider:
+        signalState.provider,
+      automaticSignals: true
+    });
+  }
+);
+
+app.get(
+  "/api/signal/status",
+  (req, res) => {
+    res.json({
+      success: true,
+      running:
+        signalState.running,
+      lastRun:
+        signalState.lastRun,
+      lastSignal:
+        signalState.lastSignal,
+      lastError:
+        signalState.lastError,
+      candlesLoaded:
+        signalState.candlesLoaded,
+      symbols:
+        ALLOWED_SYMBOLS
+    });
+  }
+);
+
+app.get(
+  "/api/market-data/status",
+  (req, res) => {
+    res.json({
+      success: true,
+      provider:
+        "Twelve Data",
+      configured:
+        Boolean(
+          TWELVE_DATA_API_KEY
+        ),
+      symbols:
+        ALLOWED_SYMBOLS,
+      timeframes:
+        ANALYSIS_TIMEFRAMES
+    });
+  }
+);
+
+app.get(
+  "/api/market-data/test",
+  async (req, res) => {
+    try {
+      const symbol =
+        normalizeSymbol(
+          req.query.symbol ||
+          "GBP/USD"
+        );
+
+      const market =
+        await loadMarket(
+          symbol
+        );
+
+      res.json({
+        success: true,
+        provider:
+          "Twelve Data",
+        symbol,
+        timeframes: {
+          "4h": {
+            count:
+              market["4h"].length,
+            latest:
+              market["4h"][
+                market["4h"].length - 1
+              ]
+          },
+
+          "1h": {
+            count:
+              market["1h"].length,
+            latest:
+              market["1h"][
+                market["1h"].length - 1
+              ]
+          },
+
+          "15m": {
+            count:
+              market["15m"].length,
+            latest:
+              market["15m"][
+                market["15m"].length - 1
+              ]
+          }
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error.message
+      });
+    }
+  }
+);
+
+app.get(
+  "/api/signal/run",
+  async (req, res) => {
+    try {
+      const result =
+        await runAutomaticSignalAnalysis();
+
+      res.json(result);
+    } catch (error) {
+      signalState.lastError =
+        error.message;
+
+      res.status(500).json({
+        success: false,
+        error:
+          error.message
+      });
+    }
+  }
+);
+
+// ============================================================
+// SUPABASE AUTH
+// ============================================================
+
+app.post(
+  "/auth/signup",
+  async (req, res) => {
+    try {
+      const {
+        email,
+        password
+      } = req.body;
+
+      if (
+        !email ||
+        !password
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Email and password are required."
+        });
+      }
+
+      const {
+        data,
+        error
+      } =
+        await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true
+        });
+
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error:
+            error.message
+        });
+      }
+
+      res.json({
+        success: true,
+        user: {
+          id: data.user.id,
+          email:
+            data.user.email
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error.message
+      });
+    }
+  }
+);
+
+app.post(
+  "/auth/login",
+  async (req, res) => {
+    try {
+      const {
+        email,
+        password
+      } = req.body;
+
+      if (
+        !email ||
+        !password
+      ) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Email and password are required."
+        });
+      }
+
+      const supabaseClient =
+        createClient(
+          SUPABASE_URL,
+          process.env.SUPABASE_ANON_KEY ||
+            process.env.SUPABASE_SERVICE_ROLE_KEY
+        );
+
+      const {
+        data,
+        error
+      } =
+        await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+      if (error) {
+        return res.status(401).json({
+          success: false,
+          error:
+            error.message
+        });
+      }
+
+      res.json({
+        success: true,
+        session:
+          data.session,
+        user:
+          data.user
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error:
+          error.message
+      });
+    }
+  }
+);
 
 // ============================================================
 // AUTOMATIC MONITOR
 // ============================================================
 
-const AUTO_MONITOR_ENABLED =
-  String(process.env.AUTO_MONITOR_ENABLED || "false").toLowerCase() ===
-  "true";
+const AUTO_SIGNAL_ENABLED =
+  String(
+    process.env.AUTO_SIGNAL_ENABLED ||
+      "false"
+  ).toLowerCase() === "true";
 
-const AUTO_MONITOR_INTERVAL =
-  Number(process.env.AUTO_MONITOR_INTERVAL_MS) || 60 * 1000;
-
-const AUTO_SYMBOLS = ALLOWED_SYMBOLS;
+const AUTO_SIGNAL_INTERVAL_MS =
+  Number(
+    process.env.AUTO_SIGNAL_INTERVAL_MS ||
+      300000
+  );
 
 async function automaticMonitor() {
-  if (signalState.running) {
+  if (
+    !AUTO_SIGNAL_ENABLED
+  ) {
+    console.log(
+      "Automatic signal monitor is disabled."
+    );
     return;
   }
 
-  for (const symbol of AUTO_SYMBOLS) {
+  console.log(
+    "Automatic signal monitor started."
+  );
+
+  const execute = async () => {
     try {
       console.log(
-        `[AUTO MONITOR] Checking ${symbol}...`
+        `[AUTO] Checking markets at ${new Date().toISOString()}`
       );
 
-      signalState.running = true;
-      signalState.lastRun = new Date().toISOString();
-
-      const result = await runAutomaticSignalAnalysis(symbol);
-
-      signalState.lastSignal = result.decision;
-      signalState.lastError = null;
+      await runAutomaticSignalAnalysis();
 
       console.log(
-        `[AUTO MONITOR] ${symbol}: ${result.decision}`
+        "[AUTO] Market check completed."
       );
-
     } catch (error) {
-      signalState.lastError = error.message;
+      signalState.lastError =
+        error.message;
 
       console.error(
-        `[AUTO MONITOR] ${symbol} error:`,
+        "[AUTO] Error:",
         error.message
       );
-
-    } finally {
-      signalState.running = false;
     }
-  }
-}
+  };
 
-if (AUTO_MONITOR_ENABLED) {
-  console.log(
-    `Automatic monitor enabled. Interval: ${AUTO_MONITOR_INTERVAL}ms`
-  );
+  await execute();
 
   setInterval(
-    automaticMonitor,
-    AUTO_MONITOR_INTERVAL
-  );
-} else {
-  console.log(
-    "Automatic monitor disabled. Set AUTO_MONITOR_ENABLED=true to enable it."
+    execute,
+    AUTO_SIGNAL_INTERVAL_MS
   );
 }
-
-// ============================================================
-// SUPABASE SLOT ROTATION
-// ============================================================
-
-async function checkExpiredSlots() {
-  try {
-    const { error } = await supabaseAdmin.rpc(
-      "rotate_expired_slots"
-    );
-
-    if (error) {
-      console.error(
-        "Slot rotation error:",
-        error.message
-      );
-    }
-  } catch (error) {
-    console.error(
-      "Slot rotation exception:",
-      error.message
-    );
-  }
-}
-
-setInterval(
-  checkExpiredSlots,
-  5 * 60 * 1000
-);
-
-checkExpiredSlots();
-
-// ============================================================
-// AUTH
-// ============================================================
-
-app.post("/auth/signup", async (req, res) => {
-  try {
-    const {
-      email,
-      password
-    } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Email and password are required."
-      });
-    }
-
-    const {
-      data,
-      error
-    } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true
-    });
-
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        error: error.message
-      });
-    }
-
-    try {
-      await supabaseAdmin.rpc(
-        "assign_analysis_slot",
-        {
-          target_user_id: data.user.id
-        }
-      );
-    } catch (slotError) {
-      console.error(
-        "Slot assignment error:",
-        slotError.message
-      );
-    }
-
-    res.json({
-      success: true,
-      message: "Account created successfully.",
-      user: {
-        id: data.user.id,
-        email: data.user.email
-      }
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-app.post("/auth/login", async (req, res) => {
-  try {
-    const {
-      email,
-      password
-    } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Email and password are required."
-      });
-    }
-
-    const {
-      data,
-      error
-    } = await supabaseAdmin.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      return res.status(401).json({
-        success: false,
-        error: error.message
-      });
-    }
-
-    res.json({
-      success: true,
-      session: data.session,
-      user: data.user
-    });
-
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// ============================================================
-// ROOT
-// ============================================================
-
-app.get("/", (req, res) => {
-  res.json({
-    message: "SMC Trading Coach AI is running",
-    version: "2.1.0",
-    status: "online",
-    marketData: "Twelve Data connected",
-    symbols: ALLOWED_SYMBOLS,
-    analysisTimeframes: ANALYSIS_TIMEFRAMES
-  });
-});
 
 // ============================================================
 // START SERVER
 // ============================================================
 
-app.listen(PORT, () => {
-  console.log(
-    `SMC Trading Coach AI running on port ${PORT}`
-  );
+app.listen(
+  PORT,
+  () => {
+    console.log(
+      `SMC Trading Coach AI running on port ${PORT}`
+    );
 
-  console.log(
-    `Twelve Data API key configured: ${Boolean(
-      TWELVE_DATA_API_KEY
-    )}`
-  );
+    console.log(
+      `Automatic signals: ${AUTO_SIGNAL_ENABLED ? "ENABLED" : "DISABLED"}`
+    );
 
-  console.log(
-    `Supported symbols: ${ALLOWED_SYMBOLS.join(", ")}`
-  );
+    console.log(
+      `Symbols: ${ALLOWED_SYMBOLS.join(", ")}`
+    );
 
-  console.log(
-    `Analysis timeframes: ${ANALYSIS_TIMEFRAMES.join(", ")}`
-  );
-});
+    console.log(
+      `Timeframes: ${ANALYSIS_TIMEFRAMES.join(", ")}`
+    );
+
+    automaticMonitor();
+  }
+);
