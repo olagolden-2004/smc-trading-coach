@@ -933,7 +933,10 @@ function analyzeTimeframe(
   };
 }
 
+// ============================================================
 // TOP-DOWN SMC DECISION
+// ============================================================
+
 function buildSMCDecision(
   market,
   symbol
@@ -961,48 +964,92 @@ function buildSMCDecision(
   let direction = "NO SIGNAL";
 
   // ----------------------------------------------------------
-  // BUY CONDITIONS
+  // HIGHER-TIMEFRAME DIRECTION
   // ----------------------------------------------------------
 
   const bullishHTF =
     h4.direction === "BULLISH";
 
-  const bullish1H =
-    h1.direction === "BULLISH";
-
-  const bullish15M =
-    m15.direction === "BULLISH";
-
-  const bullishSweep =
-    m15.sweep.bullishSweep;
-
-  const bullishDisplacement =
-    m15.displacement.bullish;
-
-  const bullishBOS =
-    m15.structure.bos === "BULLISH";
-
-  // ----------------------------------------------------------
-  // SELL CONDITIONS
-  // ----------------------------------------------------------
-
   const bearishHTF =
     h4.direction === "BEARISH";
+
+  const bullish1H =
+    h1.direction === "BULLISH";
 
   const bearish1H =
     h1.direction === "BEARISH";
 
+  const bullish15M =
+    m15.direction === "BULLISH";
+
   const bearish15M =
     m15.direction === "BEARISH";
 
+  // ----------------------------------------------------------
+  // 15M LIQUIDITY SWEEP
+  // ----------------------------------------------------------
+
+  const bullishSweep =
+    m15.sweep &&
+    m15.sweep.detected === true &&
+    m15.sweep.direction === "BULLISH";
+
   const bearishSweep =
-    m15.sweep.bearishSweep;
+    m15.sweep &&
+    m15.sweep.detected === true &&
+    m15.sweep.direction === "BEARISH";
+
+  // ----------------------------------------------------------
+  // 15M DISPLACEMENT
+  // ----------------------------------------------------------
+
+  const bullishDisplacement =
+    m15.displacement &&
+    m15.displacement.detected === true &&
+    m15.displacement.direction === "BULLISH";
 
   const bearishDisplacement =
-    m15.displacement.bearish;
+    m15.displacement &&
+    m15.displacement.detected === true &&
+    m15.displacement.direction === "BEARISH";
+
+  // ----------------------------------------------------------
+  // 15M BOS
+  // ----------------------------------------------------------
+
+  const bullishBOS =
+    m15.structure.bos === "BULLISH";
 
   const bearishBOS =
     m15.structure.bos === "BEARISH";
+
+  // ----------------------------------------------------------
+  // SWEEP → DISPLACEMENT SEQUENCE
+  // ----------------------------------------------------------
+
+  const bullishSequence =
+    bullishSweep &&
+    bullishDisplacement &&
+    Number.isInteger(
+      m15.sweep.index
+    ) &&
+    Number.isInteger(
+      m15.displacement.index
+    ) &&
+    m15.sweep.index <
+      m15.displacement.index;
+
+  const bearishSequence =
+    bearishSweep &&
+    bearishDisplacement &&
+    Number.isInteger(
+      m15.sweep.index
+    ) &&
+    Number.isInteger(
+      m15.displacement.index
+    ) &&
+    m15.sweep.index <
+      m15.displacement.index;
 
   // ----------------------------------------------------------
   // BUY DECISION
@@ -1012,8 +1059,7 @@ function buildSMCDecision(
     bullishHTF &&
     bullish1H &&
     bullish15M &&
-    bullishSweep &&
-    bullishDisplacement &&
+    bullishSequence &&
     bullishBOS
   ) {
     direction = "BUY";
@@ -1031,11 +1077,11 @@ function buildSMCDecision(
     );
 
     reasons.push(
-      "Liquidity sweep detected."
+      "Bullish liquidity sweep detected."
     );
 
     reasons.push(
-      "Bullish displacement detected."
+      "Bullish displacement followed the sweep."
     );
 
     reasons.push(
@@ -1051,8 +1097,7 @@ function buildSMCDecision(
     bearishHTF &&
     bearish1H &&
     bearish15M &&
-    bearishSweep &&
-    bearishDisplacement &&
+    bearishSequence &&
     bearishBOS
   ) {
     direction = "SELL";
@@ -1070,11 +1115,11 @@ function buildSMCDecision(
     );
 
     reasons.push(
-      "Liquidity sweep detected."
+      "Bearish liquidity sweep detected."
     );
 
     reasons.push(
-      "Bearish displacement detected."
+      "Bearish displacement followed the sweep."
     );
 
     reasons.push(
@@ -1083,10 +1128,13 @@ function buildSMCDecision(
   }
 
   // ----------------------------------------------------------
-  // NO SIGNAL REASONS
+  // NO SIGNAL
   // ----------------------------------------------------------
 
-  if (direction === "NO SIGNAL") {
+  if (
+    direction === "NO SIGNAL"
+  ) {
+
     if (
       h4.direction === "NEUTRAL"
     ) {
@@ -1096,7 +1144,8 @@ function buildSMCDecision(
     }
 
     if (
-      h4.direction !== h1.direction
+      h4.direction !==
+      h1.direction
     ) {
       reasons.push(
         "4H and 1H are not aligned."
@@ -1104,7 +1153,8 @@ function buildSMCDecision(
     }
 
     if (
-      h1.direction !== m15.direction
+      h1.direction !==
+      m15.direction
     ) {
       reasons.push(
         "1H and 15M are not aligned."
@@ -1130,6 +1180,26 @@ function buildSMCDecision(
     }
 
     if (
+      bullishSweep &&
+      bullishDisplacement &&
+      !bullishSequence
+    ) {
+      reasons.push(
+        "Bullish displacement did not follow the bullish sweep."
+      );
+    }
+
+    if (
+      bearishSweep &&
+      bearishDisplacement &&
+      !bearishSequence
+    ) {
+      reasons.push(
+        "Bearish displacement did not follow the bearish sweep."
+      );
+    }
+
+    if (
       !bullishBOS &&
       !bearishBOS
     ) {
@@ -1138,12 +1208,36 @@ function buildSMCDecision(
       );
     }
 
-    if (!reasons.length) {
+    if (
+      bullishBOS &&
+      !bullishHTF
+    ) {
+      reasons.push(
+        "Bullish 15M BOS conflicts with the 4H direction."
+      );
+    }
+
+    if (
+      bearishBOS &&
+      !bearishHTF
+    ) {
+      reasons.push(
+        "Bearish 15M BOS conflicts with the 4H direction."
+      );
+    }
+
+    if (
+      reasons.length === 0
+    ) {
       reasons.push(
         "SMC conditions are incomplete."
       );
     }
   }
+
+  // ----------------------------------------------------------
+  // FINAL RESULT
+  // ----------------------------------------------------------
 
   const latest15M =
     market["15m"][
@@ -1152,9 +1246,15 @@ function buildSMCDecision(
 
   return {
     symbol,
-    signal: direction,
-    price: latest15M.close,
-    candleTime: latest15M.time,
+
+    signal:
+      direction,
+
+    price:
+      latest15M.close,
+
+    candleTime:
+      latest15M.time,
 
     timeframes: {
       "4h": h4,
@@ -1162,12 +1262,21 @@ function buildSMCDecision(
       "15m": m15
     },
 
+    sequence: {
+      bullishSweep,
+      bearishSweep,
+      bullishDisplacement,
+      bearishDisplacement,
+      bullishSequence,
+      bearishSequence
+    },
+
     reasons,
 
     generatedAt:
       new Date().toISOString()
   };
-}
+    }
 
 // ============================================================
 // SIGNAL DUPLICATION PROTECTION
