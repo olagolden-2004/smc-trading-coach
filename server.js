@@ -683,73 +683,86 @@ function detectLiquiditySweep(candles) {
 
 // DISPLACEMENT
 function detectDisplacement(candles) {
-  if (candles.length < 25) {
+  if (!Array.isArray(candles) || candles.length < 20) {
     return {
-      bullish: false,
-      bearish: false,
+      detected: false,
+      direction: null,
+      index: null,
+      time: null,
       strength: 0
     };
   }
 
-  const latest =
-    candles[candles.length - 1];
+  const startIndex = Math.max(5, candles.length - 12);
 
-  const previous =
-    candles[candles.length - 2];
+  for (let i = candles.length - 1; i >= startIndex; i--) {
+    const candle = candles[i];
 
-  const avgRange =
-    averageRange(
-      candles.slice(0, -1),
-      20
+    const previous = candles.slice(
+      Math.max(0, i - 10),
+      i
     );
 
-  const latestRange =
-    candleRange(latest);
+    if (previous.length < 5) {
+      continue;
+    }
 
-  const latestBody =
-    candleBody(latest);
+    const averageRange =
+      previous.reduce(
+        (sum, item) => sum + candleRange(item),
+        0
+      ) / previous.length;
 
-  const strongRange =
-    avgRange > 0 &&
-    latestRange >= avgRange * 1.5;
+    const range = candleRange(candle);
+    const body = candleBody(candle);
 
-  const strongBody =
-    latestRange > 0 &&
-    latestBody / latestRange >= 0.60;
+    if (averageRange <= 0) {
+      continue;
+    }
 
-  const bullish =
-    isBullish(latest) &&
-    latest.close > previous.close &&
-    strongRange &&
-    strongBody;
+    const bodyRatio = body / range;
 
-  const bearish =
-    isBearish(latest) &&
-    latest.close < previous.close &&
-    strongRange &&
-    strongBody;
+    // Strong bullish displacement
+    if (
+      isBullish(candle) &&
+      range >= averageRange * 1.5 &&
+      bodyRatio >= 0.65
+    ) {
+      return {
+        detected: true,
+        direction: "BULLISH",
+        index: i,
+        time: candle.time,
+        strength: Number(
+          (range / averageRange).toFixed(2)
+        )
+      };
+    }
 
-  let strength = 0;
-
-  if (strongRange) {
-    strength += 50;
-  }
-
-  if (strongBody) {
-    strength += 30;
-  }
-
-  if (
-    bullish ||
-    bearish
-  ) {
-    strength += 20;
+    // Strong bearish displacement
+    if (
+      isBearish(candle) &&
+      range >= averageRange * 1.5 &&
+      bodyRatio >= 0.65
+    ) {
+      return {
+        detected: true,
+        direction: "BEARISH",
+        index: i,
+        time: candle.time,
+        strength: Number(
+          (range / averageRange).toFixed(2)
+        )
+      };
+    }
   }
 
   return {
-    bullish,
-    bearish,
-    strength
+    detected: false,
+    direction: null,
+    index: null,
+    time: null,
+    strength: 0
   };
 }
 
