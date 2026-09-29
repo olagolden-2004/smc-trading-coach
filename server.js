@@ -316,20 +316,66 @@ async function fetchTwelveDataCandles(
   return candles;
 }
 
+function getTimeframeMinutes(timeframe) {
+  if (timeframe === "15m") return 15;
+  if (timeframe === "1h") return 60;
+  if (timeframe === "4h") return 240;
+
+  return 0;
+}
+
+function filterClosedCandles(candles, timeframe) {
+  const minutes = getTimeframeMinutes(timeframe);
+
+  if (!minutes || !Array.isArray(candles)) {
+    return candles;
+  }
+
+  const now = Date.now();
+
+  return candles.filter(candle => {
+    const candleTime = new Date(candle.time).getTime();
+
+    if (!Number.isFinite(candleTime)) {
+      return false;
+    }
+
+    const candleEnd =
+      candleTime + minutes * 60 * 1000;
+
+    return candleEnd <= now;
+  });
+}
+
 async function loadMarket(symbol) {
   const result = {};
 
   for (const timeframe of ANALYSIS_TIMEFRAMES) {
-    result[timeframe] =
+    const candles =
       await fetchTwelveDataCandles(
         symbol,
         timeframe,
         CANDLE_LIMIT
       );
+
+    const closedCandles =
+      filterClosedCandles(
+        candles,
+        timeframe
+      );
+
+    if (closedCandles.length < 50) {
+      throw new Error(
+        `${symbol} ${timeframe}: not enough closed candles after filtering.`
+      );
+    }
+
+    result[timeframe] =
+      closedCandles;
   }
 
   return result;
-}
+        }
 
 // ============================================================
 // SMC MATH HELPERS
