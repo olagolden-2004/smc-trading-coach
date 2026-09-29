@@ -608,45 +608,76 @@ function analyzeStructure(candles) {
 // ============================================================
 
 // LIQUIDITY SWEEP
-function detectLiquiditySweep(candles, structure) {
-  const latestIndex = candles.length - 1;
-  const latest = candles[latestIndex];
-
-  const highs = structure.swingHighs;
-  const lows = structure.swingLows;
-
-  const recentHigh =
-    highs.length ? highs[highs.length - 1] : null;
-
-  const recentLow =
-    lows.length ? lows[lows.length - 1] : null;
-
-  let bullishSweep = false;
-  let bearishSweep = false;
-
-  if (recentLow) {
-    bullishSweep =
-      latest.low < recentLow.price &&
-      latest.close > recentLow.price;
+function detectLiquiditySweep(candles) {
+  if (!Array.isArray(candles) || candles.length < 20) {
+    return {
+      detected: false,
+      direction: null,
+      index: null,
+      time: null,
+      level: null
+    };
   }
 
-  if (recentHigh) {
-    bearishSweep =
-      latest.high > recentHigh.price &&
-      latest.close < recentHigh.price;
+  const startIndex = Math.max(10, candles.length - 20);
+
+  for (let i = candles.length - 1; i >= startIndex; i--) {
+    const candle = candles[i];
+
+    const previousCandles = candles.slice(0, i);
+
+    const swingHighs = findSwingHighs(previousCandles, 3);
+    const swingLows = findSwingLows(previousCandles, 3);
+
+    const recentHigh =
+      swingHighs.length > 0
+        ? swingHighs[swingHighs.length - 1]
+        : null;
+
+    const recentLow =
+      swingLows.length > 0
+        ? swingLows[swingLows.length - 1]
+        : null;
+
+    // Bullish liquidity sweep:
+    // price takes a previous low but closes back above it.
+    if (
+      recentLow &&
+      candle.low < recentLow.price &&
+      candle.close > recentLow.price
+    ) {
+      return {
+        detected: true,
+        direction: "BULLISH",
+        index: i,
+        time: candle.time,
+        level: recentLow.price
+      };
+    }
+
+    // Bearish liquidity sweep:
+    // price takes a previous high but closes back below it.
+    if (
+      recentHigh &&
+      candle.high > recentHigh.price &&
+      candle.close < recentHigh.price
+    ) {
+      return {
+        detected: true,
+        direction: "BEARISH",
+        index: i,
+        time: candle.time,
+        level: recentHigh.price
+      };
+    }
   }
 
   return {
-    bullishSweep,
-    bearishSweep,
-    sweptHigh:
-      bearishSweep && recentHigh
-        ? recentHigh.price
-        : null,
-    sweptLow:
-      bullishSweep && recentLow
-        ? recentLow.price
-        : null
+    detected: false,
+    direction: null,
+    index: null,
+    time: null,
+    level: null
   };
 }
 
