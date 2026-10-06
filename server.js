@@ -1463,56 +1463,87 @@ function buildSMCDecision(
   let direction =
     "NO SIGNAL";
 
-  const bullishHTF =
-    h4.direction ===
+  // ==========================================================
+  // 4H CONTEXT
+  // ==========================================================
+
+  const h4BullishContinuation =
+    h4.structure.bias ===
     "BULLISH";
 
-  const bearishHTF =
-    h4.direction ===
+  const h4BearishContinuation =
+    h4.structure.bias ===
     "BEARISH";
 
+  const h4BullishTransition =
+    h4.structure.transition ===
+      "BULLISH" &&
+    h4.structure.choch ===
+      "BULLISH";
+
+  const h4BearishTransition =
+    h4.structure.transition ===
+      "BEARISH" &&
+    h4.structure.choch ===
+      "BEARISH";
+
+  const validBullishHTF =
+    h4BullishContinuation ||
+    h4BullishTransition;
+
+  const validBearishHTF =
+    h4BearishContinuation ||
+    h4BearishTransition;
+
+  // ==========================================================
+  // 1H CONFIRMATION
+  // ==========================================================
+
   const bullish1H =
-    h1.direction ===
+    h1.structure.bias ===
     "BULLISH";
 
   const bearish1H =
-    h1.direction ===
+    h1.structure.bias ===
     "BEARISH";
+
+  // ==========================================================
+  // 15M LIQUIDITY SWEEP
+  // ==========================================================
 
   const bullishSweep =
     m15.sweep &&
-    m15.sweep.detected ===
-      true &&
+    m15.sweep.detected === true &&
     m15.sweep.direction ===
       "BULLISH";
 
   const bearishSweep =
     m15.sweep &&
-    m15.sweep.detected ===
-      true &&
+    m15.sweep.detected === true &&
     m15.sweep.direction ===
       "BEARISH";
 
+  // ==========================================================
+  // 15M DISPLACEMENT
+  // ==========================================================
+
   const bullishDisplacement =
     m15.displacement &&
-    m15.displacement.detected ===
-      true &&
+    m15.displacement.detected === true &&
     m15.displacement.direction ===
       "BULLISH";
 
   const bearishDisplacement =
     m15.displacement &&
-    m15.displacement.detected ===
-      true &&
+    m15.displacement.detected === true &&
     m15.displacement.direction ===
       "BEARISH";
 
-  // ----------------------------------------------------------
-  // Sequence:
-  // Sweep must happen before or on displacement.
-  // ----------------------------------------------------------
+  // ==========================================================
+  // SWEEP → DISPLACEMENT SEQUENCE
+  // ==========================================================
 
-  const bullishSequence =
+  const bullishSweepDisplacement =
     bullishSweep &&
     bullishDisplacement &&
     Number.isInteger(
@@ -1521,10 +1552,10 @@ function buildSMCDecision(
     Number.isInteger(
       m15.displacement.index
     ) &&
-    m15.sweep.index <=
-      m15.displacement.index;
+    m15.displacement.index >=
+      m15.sweep.index;
 
-  const bearishSequence =
+  const bearishSweepDisplacement =
     bearishSweep &&
     bearishDisplacement &&
     Number.isInteger(
@@ -1533,55 +1564,54 @@ function buildSMCDecision(
     Number.isInteger(
       m15.displacement.index
     ) &&
-    m15.sweep.index <=
-      m15.displacement.index;
+    m15.displacement.index >=
+      m15.sweep.index;
 
-  // ----------------------------------------------------------
-  // BOS must occur after displacement.
-  // ----------------------------------------------------------
+  // ==========================================================
+  // 15M BOS AFTER DISPLACEMENT
+  // ==========================================================
 
-  let bullishBOS = null;
+  const bullishBOS =
+    bullishSweepDisplacement
+      ? findBOSAfterIndex(
+          market["15m"],
+          "BULLISH",
+          m15.displacement.index
+        )
+      : null;
 
-  let bearishBOS = null;
+  const bearishBOS =
+    bearishSweepDisplacement
+      ? findBOSAfterIndex(
+          market["15m"],
+          "BEARISH",
+          m15.displacement.index
+        )
+      : null;
 
-  if (
-    bullishSequence
-  ) {
-    bullishBOS =
-      findBOSAfterIndex(
-        market["15m"],
-        "BULLISH",
-        m15.displacement.index
-      );
-  }
-
-  if (
-    bearishSequence
-  ) {
-    bearishBOS =
-      findBOSAfterIndex(
-        market["15m"],
-        "BEARISH",
-        m15.displacement.index
-      );
-  }
-
-  // ----------------------------------------------------------
-  // BUY
-  // ----------------------------------------------------------
+  // ==========================================================
+  // BUY SIGNAL
+  // ==========================================================
 
   if (
-    bullishHTF &&
+    validBullishHTF &&
     bullish1H &&
-    bullishSequence &&
+    bullishSweepDisplacement &&
     bullishBOS
   ) {
-    direction =
-      "BUY";
+    direction = "BUY";
 
-    reasons.push(
-      "4H bullish structure."
-    );
+    if (
+      h4BullishTransition
+    ) {
+      reasons.push(
+        "4H bullish transition confirmed by CHOCH."
+      );
+    } else {
+      reasons.push(
+        "4H bullish external structure."
+      );
+    }
 
     reasons.push(
       "1H confirms bullish direction."
@@ -1592,7 +1622,7 @@ function buildSMCDecision(
     );
 
     reasons.push(
-      "Bullish displacement followed the sweep."
+      "15M bullish displacement followed the sweep."
     );
 
     reasons.push(
@@ -1600,22 +1630,29 @@ function buildSMCDecision(
     );
   }
 
-  // ----------------------------------------------------------
-  // SELL
-  // ----------------------------------------------------------
+  // ==========================================================
+  // SELL SIGNAL
+  // ==========================================================
 
   if (
-    bearishHTF &&
+    validBearishHTF &&
     bearish1H &&
-    bearishSequence &&
+    bearishSweepDisplacement &&
     bearishBOS
   ) {
-    direction =
-      "SELL";
+    direction = "SELL";
 
-    reasons.push(
-      "4H bearish structure."
-    );
+    if (
+      h4BearishTransition
+    ) {
+      reasons.push(
+        "4H bearish transition confirmed by CHOCH."
+      );
+    } else {
+      reasons.push(
+        "4H bearish external structure."
+      );
+    }
 
     reasons.push(
       "1H confirms bearish direction."
@@ -1626,7 +1663,7 @@ function buildSMCDecision(
     );
 
     reasons.push(
-      "Bearish displacement followed the sweep."
+      "15M bearish displacement followed the sweep."
     );
 
     reasons.push(
@@ -1634,29 +1671,39 @@ function buildSMCDecision(
     );
   }
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // NO SIGNAL REASONS
-  // ----------------------------------------------------------
+  // ==========================================================
 
   if (
     direction ===
     "NO SIGNAL"
   ) {
+
     if (
-      h4.direction ===
-      "NEUTRAL"
+      !validBullishHTF &&
+      !validBearishHTF
     ) {
       reasons.push(
-        "4H structure is not clear."
+        "4H has no valid continuation or transition context."
       );
     }
 
     if (
-      h4.direction !==
-      h1.direction
+      validBullishHTF &&
+      !bullish1H
     ) {
       reasons.push(
-        "4H and 1H are not aligned."
+        "4H bullish context is not confirmed by 1H."
+      );
+    }
+
+    if (
+      validBearishHTF &&
+      !bearish1H
+    ) {
+      reasons.push(
+        "4H bearish context is not confirmed by 1H."
       );
     }
 
@@ -1670,67 +1717,56 @@ function buildSMCDecision(
     }
 
     if (
-      !bullishDisplacement &&
-      !bearishDisplacement
-    ) {
-      reasons.push(
-        "No confirmed 15M displacement."
-      );
-    }
-
-    if (
       bullishSweep &&
-      bullishDisplacement &&
-      !bullishSequence
+      !bullishDisplacement
     ) {
       reasons.push(
-        "Bullish displacement did not follow the bullish sweep."
+        "Bullish 15M sweep has no bullish displacement."
       );
     }
 
     if (
       bearishSweep &&
-      bearishDisplacement &&
-      !bearishSequence
+      !bearishDisplacement
     ) {
       reasons.push(
-        "Bearish displacement did not follow the bearish sweep."
+        "Bearish 15M sweep has no bearish displacement."
       );
     }
 
     if (
-      bullishSequence &&
+      bullishDisplacement &&
+      !bullishSweep
+    ) {
+      reasons.push(
+        "Bullish displacement has no preceding bullish sweep."
+      );
+    }
+
+    if (
+      bearishDisplacement &&
+      !bearishSweep
+    ) {
+      reasons.push(
+        "Bearish displacement has no preceding bearish sweep."
+      );
+    }
+
+    if (
+      bullishSweepDisplacement &&
       !bullishBOS
     ) {
       reasons.push(
-        "No bullish 15M BOS after displacement."
+        "Bullish sweep and displacement confirmed, but no bullish 15M BOS followed."
       );
     }
 
     if (
-      bearishSequence &&
+      bearishSweepDisplacement &&
       !bearishBOS
     ) {
       reasons.push(
-        "No bearish 15M BOS after displacement."
-      );
-    }
-
-    if (
-      bullishBOS &&
-      !bullishHTF
-    ) {
-      reasons.push(
-        "Bullish 15M BOS conflicts with the 4H direction."
-      );
-    }
-
-    if (
-      bearishBOS &&
-      !bearishHTF
-    ) {
-      reasons.push(
-        "Bearish 15M BOS conflicts with the 4H direction."
+        "Bearish sweep and displacement confirmed, but no bearish 15M BOS followed."
       );
     }
 
@@ -1742,6 +1778,10 @@ function buildSMCDecision(
       );
     }
   }
+
+  // ==========================================================
+  // LATEST 15M PRICE
+  // ==========================================================
 
   const latest15M =
     market["15m"][
@@ -1766,6 +1806,26 @@ function buildSMCDecision(
       "15m": m15
     },
 
+    context: {
+      bullishHTF:
+        validBullishHTF,
+
+      bearishHTF:
+        validBearishHTF,
+
+      bullishContinuation:
+        h4BullishContinuation,
+
+      bearishContinuation:
+        h4BearishContinuation,
+
+      bullishTransition:
+        h4BullishTransition,
+
+      bearishTransition:
+        h4BearishTransition
+    },
+
     sequence: {
       bullishSweep,
       bearishSweep,
@@ -1773,11 +1833,48 @@ function buildSMCDecision(
       bullishDisplacement,
       bearishDisplacement,
 
-      bullishSequence,
-      bearishSequence,
+      bullishSweepDisplacement,
+      bearishSweepDisplacement,
 
-      bullishBOS,
-      bearishBOS
+      bullishBOS:
+        bullishBOS
+          ? bullishBOS.direction
+          : null,
+
+      bearishBOS:
+        bearishBOS
+          ? bearishBOS.direction
+          : null,
+
+      bullishSweepIndex:
+        bullishSweep
+          ? m15.sweep.index
+          : null,
+
+      bullishDisplacementIndex:
+        bullishDisplacement
+          ? m15.displacement.index
+          : null,
+
+      bearishSweepIndex:
+        bearishSweep
+          ? m15.sweep.index
+          : null,
+
+      bearishDisplacementIndex:
+        bearishDisplacement
+          ? m15.displacement.index
+          : null,
+
+      bullishBOSIndex:
+        bullishBOS
+          ? bullishBOS.index
+          : null,
+
+      bearishBOSIndex:
+        bearishBOS
+          ? bearishBOS.index
+          : null
     },
 
     reasons,
