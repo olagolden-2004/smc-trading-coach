@@ -558,6 +558,10 @@ function analyzeStructure(candles) {
   const recentLows =
     lows.slice(-4);
 
+  // ----------------------------------------------------------
+  // EXTERNAL STRUCTURE / BIAS
+  // ----------------------------------------------------------
+
   let bias = "NEUTRAL";
 
   if (
@@ -599,21 +603,22 @@ function analyzeStructure(candles) {
     }
   }
 
-  // ==========================================================
-  // BOS DETECTION
-  // Only record a BOS when price crosses a structure level.
-  // Staying above/below the same level is NOT another BOS.
-  // ==========================================================
+  // ----------------------------------------------------------
+  // INTERNAL STRUCTURE BREAKS
+  // ----------------------------------------------------------
 
   const bosEvents = [];
 
   const startIndex =
-    Math.max(10, candles.length - 30);
+    Math.max(
+      10,
+      candles.length - 30
+    );
 
-  let brokenBullishLevels =
+  const brokenBullishLevels =
     new Set();
 
-  let brokenBearishLevels =
+  const brokenBearishLevels =
     new Set();
 
   for (
@@ -660,11 +665,9 @@ function analyzeStructure(candles) {
           ]
         : null;
 
-    // ----------------------------------------------------------
-    // BULLISH BOS
-    // Previous candle was at/below the swing high.
-    // Current candle closes above it.
-    // ----------------------------------------------------------
+    // --------------------------------------------------------
+    // BULLISH INTERNAL BREAK
+    // --------------------------------------------------------
 
     if (
       referenceHigh &&
@@ -696,11 +699,9 @@ function analyzeStructure(candles) {
       }
     }
 
-    // ----------------------------------------------------------
-    // BEARISH BOS
-    // Previous candle was at/above the swing low.
-    // Current candle closes below it.
-    // ----------------------------------------------------------
+    // --------------------------------------------------------
+    // BEARISH INTERNAL BREAK
+    // --------------------------------------------------------
 
     if (
       referenceLow &&
@@ -733,12 +734,24 @@ function analyzeStructure(candles) {
     }
   }
 
+  // ----------------------------------------------------------
+  // LATEST INTERNAL BREAK
+  // ----------------------------------------------------------
+
   const latestBOS =
     bosEvents.length > 0
       ? bosEvents[
           bosEvents.length - 1
         ]
       : null;
+
+  // ----------------------------------------------------------
+  // CHOCH
+  //
+  // Opposite break against the established external bias
+  // is treated as a structural transition, not an immediate
+  // trend reversal.
+  // ----------------------------------------------------------
 
   let choch = null;
 
@@ -760,19 +773,63 @@ function analyzeStructure(candles) {
     choch = "BEARISH";
   }
 
+  // ----------------------------------------------------------
+  // INTERNAL STRUCTURE DIRECTION
+  // ----------------------------------------------------------
+
+  let internalDirection =
+    "NEUTRAL";
+
+  if (latestBOS) {
+    internalDirection =
+      latestBOS.direction;
+  }
+
+  // ----------------------------------------------------------
+  // TRANSITION
+  //
+  // This tells the signal engine:
+  //
+  // BEARISH external bias + BULLISH CHOCH
+  // = possible bullish transition.
+  //
+  // BULLISH external bias + BEARISH CHOCH
+  // = possible bearish transition.
+  // ----------------------------------------------------------
+
+  let transition =
+    "NONE";
+
+  if (choch === "BULLISH") {
+    transition = "BULLISH";
+  }
+
+  if (choch === "BEARISH") {
+    transition = "BEARISH";
+  }
+
   const latestHigh =
     highs.length > 0
-      ? highs[highs.length - 1]
+      ? highs[
+          highs.length - 1
+        ]
       : null;
 
   const latestLow =
     lows.length > 0
-      ? lows[lows.length - 1]
+      ? lows[
+          lows.length - 1
+        ]
       : null;
 
   return {
+    // External structure
     bias,
 
+    // Internal structure
+    internalDirection,
+
+    // Latest internal BOS
     bos:
       latestBOS
         ? latestBOS.direction
@@ -788,8 +845,12 @@ function analyzeStructure(candles) {
         ? latestBOS.time
         : null,
 
+    // Structural transition
     choch,
 
+    transition,
+
+    // Full BOS history
     bosEvents,
 
     swingHighs:
