@@ -545,21 +545,12 @@ function findSwingLows(
 // ============================================================
 // MARKET STRUCTURE
 // ============================================================
-
-function analyzeStructure(
-  candles
-) {
+function analyzeStructure(candles) {
   const highs =
-    findSwingHighs(
-      candles,
-      3
-    );
+    findSwingHighs(candles, 3);
 
   const lows =
-    findSwingLows(
-      candles,
-      3
-    );
+    findSwingLows(candles, 3);
 
   const recentHighs =
     highs.slice(-4);
@@ -593,26 +584,37 @@ function analyzeStructure(
         recentLows.length - 1
       ];
 
-    if (
+    const bullishStructure =
       h2.price > h1.price &&
-      l2.price > l1.price
-    ) {
-      bias = "BULLISH";
-    } else if (
+      l2.price > l1.price;
+
+    const bearishStructure =
       h2.price < h1.price &&
-      l2.price < l1.price
-    ) {
+      l2.price < l1.price;
+
+    if (bullishStructure) {
+      bias = "BULLISH";
+    } else if (bearishStructure) {
       bias = "BEARISH";
     }
   }
 
+  // ==========================================================
+  // BOS DETECTION
+  // Only record a BOS when price crosses a structure level.
+  // Staying above/below the same level is NOT another BOS.
+  // ==========================================================
+
   const bosEvents = [];
 
   const startIndex =
-    Math.max(
-      10,
-      candles.length - 20
-    );
+    Math.max(10, candles.length - 30);
+
+  let brokenBullishLevels =
+    new Set();
+
+  let brokenBearishLevels =
+    new Set();
 
   for (
     let i = startIndex;
@@ -622,11 +624,15 @@ function analyzeStructure(
     const candle =
       candles[i];
 
+    const previousCandle =
+      candles[i - 1];
+
+    if (!previousCandle) {
+      continue;
+    }
+
     const previousCandles =
-      candles.slice(
-        0,
-        i
-      );
+      candles.slice(0, i);
 
     const candleHighs =
       findSwingHighs(
@@ -641,45 +647,89 @@ function analyzeStructure(
       );
 
     const referenceHigh =
-      candleHighs.length
+      candleHighs.length > 0
         ? candleHighs[
             candleHighs.length - 1
           ]
         : null;
 
     const referenceLow =
-      candleLows.length
+      candleLows.length > 0
         ? candleLows[
             candleLows.length - 1
           ]
         : null;
 
+    // ----------------------------------------------------------
+    // BULLISH BOS
+    // Previous candle was at/below the swing high.
+    // Current candle closes above it.
+    // ----------------------------------------------------------
+
     if (
       referenceHigh &&
+      previousCandle.close <=
+        referenceHigh.price &&
       candle.close >
         referenceHigh.price
     ) {
-      bosEvents.push({
-        direction: "BULLISH",
-        index: i,
-        time: candle.time,
-        level:
-          referenceHigh.price
-      });
+      const levelKey =
+        referenceHigh.index +
+        ":" +
+        referenceHigh.price;
+
+      if (
+        !brokenBullishLevels.has(
+          levelKey
+        )
+      ) {
+        bosEvents.push({
+          direction: "BULLISH",
+          index: i,
+          time: candle.time,
+          level: referenceHigh.price
+        });
+
+        brokenBullishLevels.add(
+          levelKey
+        );
+      }
     }
+
+    // ----------------------------------------------------------
+    // BEARISH BOS
+    // Previous candle was at/above the swing low.
+    // Current candle closes below it.
+    // ----------------------------------------------------------
 
     if (
       referenceLow &&
+      previousCandle.close >=
+        referenceLow.price &&
       candle.close <
         referenceLow.price
     ) {
-      bosEvents.push({
-        direction: "BEARISH",
-        index: i,
-        time: candle.time,
-        level:
-          referenceLow.price
-      });
+      const levelKey =
+        referenceLow.index +
+        ":" +
+        referenceLow.price;
+
+      if (
+        !brokenBearishLevels.has(
+          levelKey
+        )
+      ) {
+        bosEvents.push({
+          direction: "BEARISH",
+          index: i,
+          time: candle.time,
+          level: referenceLow.price
+        });
+
+        brokenBearishLevels.add(
+          levelKey
+        );
+      }
     }
   }
 
@@ -711,43 +761,48 @@ function analyzeStructure(
   }
 
   const latestHigh =
-    highs.length
-      ? highs[
-          highs.length - 1
-        ]
+    highs.length > 0
+      ? highs[highs.length - 1]
       : null;
 
   const latestLow =
-    lows.length
-      ? lows[
-          lows.length - 1
-        ]
+    lows.length > 0
+      ? lows[lows.length - 1]
       : null;
 
   return {
     bias,
+
     bos:
       latestBOS
         ? latestBOS.direction
         : null,
+
     bosIndex:
       latestBOS
         ? latestBOS.index
         : null,
+
     bosTime:
       latestBOS
         ? latestBOS.time
         : null,
+
     choch,
+
     bosEvents,
+
     swingHighs:
       highs,
+
     swingLows:
       lows,
+
     latestHigh:
       latestHigh
         ? latestHigh.price
         : null,
+
     latestLow:
       latestLow
         ? latestLow.price
